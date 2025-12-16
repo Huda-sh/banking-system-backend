@@ -21,7 +21,7 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /var/www
 
 # Copy composer files
 COPY composer.json composer.lock ./
@@ -36,9 +36,9 @@ COPY . .
 RUN composer dump-autoload --optimize --no-interaction
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/storage \
+    && chmod -R 755 /var/www/bootstrap/cache
 
 # Production stage
 FROM base AS production
@@ -57,7 +57,7 @@ RUN php artisan config:cache || true \
 
 USER www-data
 
-EXPOSE 9000
+EXPOSE 8080
 
 CMD ["php-fpm"]
 
@@ -73,6 +73,6 @@ RUN npm install
 
 USER www-data
 
-EXPOSE 9000
+EXPOSE 8080
 
 CMD ["php-fpm"]
