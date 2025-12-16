@@ -2,9 +2,7 @@
 
 set -e
 
-ENV=${1:-production}
-
-echo "🚀 Starting deployment for $ENV environment..."
+echo "🚀 Starting deployment..."
 
 # Check if .env file exists
 if [ ! -f .env ]; then
@@ -14,47 +12,23 @@ fi
 
 # Build images
 echo "📦 Building Docker images..."
-if [ "$ENV" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
-else
-    docker-compose build --no-cache
-fi
+docker compose build --no-cache
 
 # Start containers
 echo "🚀 Starting containers..."
-if [ "$ENV" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-else
-    docker-compose up -d
-fi
+docker compose up -d
 
-# Wait for database to be ready
-echo "⏳ Waiting for database..."
-sleep 15
+# Wait for application to be ready
+echo "⏳ Waiting for application to start..."
+sleep 5
 
 # Run migrations
 echo "🔄 Running migrations..."
-if [ "$ENV" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T app php artisan migrate --force
-else
-    docker-compose exec -T app php artisan migrate --force
-fi
+docker compose exec -T app php artisan migrate --force
 
-# Clear and cache config (production only)
-if [ "$ENV" = "production" ]; then
-    echo "⚡ Optimizing application..."
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T app php artisan config:cache
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T app php artisan route:cache
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml exec -T app php artisan view:cache
-fi
-
-# Restart queue workers
-echo "🔄 Restarting queue workers..."
-if [ "$ENV" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml restart queue
-else
-    docker-compose restart queue
-fi
+# Optimize application
+echo "⚡ Optimizing application..."
+docker compose exec -T app php artisan optimize || true
 
 echo "✅ Deployment complete!"
 echo "📊 Application is running at: http://localhost:8080"

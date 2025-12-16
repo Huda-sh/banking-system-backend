@@ -1,6 +1,6 @@
-FROM php:8.2-fpm AS base
+FROM php:8.2-fpm
 
-# Install system dependencies
+# Install system dependencies including Nginx
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     nodejs \
     npm \
+    nginx \
+    supervisor \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -35,44 +37,29 @@ COPY . .
 # Run composer scripts now that artisan exists
 RUN composer dump-autoload --optimize --no-interaction
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www/storage \
-    && chmod -R 755 /var/www/bootstrap/cache
-
-# Production stage
-FROM base AS production
-
-# Install production dependencies only
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts \
-    && composer dump-autoload --optimize --no-interaction
-
 # Install and build assets
-RUN npm ci && npm run build && rm -rf node_modules
+RUN npm install && npm run build && rm -rf node_modules
 
-# Optimize Laravel for production
-RUN php artisan config:cache || true \
-    && php artisan route:cache || true \
-    && php artisan view:cache || true
+# Remove default Nginx configuration
+RUN rm -f /etc/nginx/sites-enabled/default
 
-USER www-data
+# Copy Nginx configuration
+COPY docker/nginx/default.conf /etc/nginx/sites-available/default
+RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-EXPOSE 8080
+# Copy supervisor configuration
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-CMD ["php-fpm"]
+# Create necessary directories and set permissions
+RUN mkdir -p /var/log/supervisor /var/log/nginx /var/lib/nginx \
+    && chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/storage \
+    && chmod -R 755 /var/www/bootstrap/cache \
+    && chown -R www-data:www-data /var/log/nginx \
+    && chown -R www-data:www-data /var/lib/nginx
 
-# Development stage
-FROM base AS development
+# Expose port 80 for Nginx
+EXPOSE 80
 
-# Install all dependencies including dev
-RUN composer install --no-interaction --prefer-dist --no-scripts \
-    && composer dump-autoload --optimize --no-interaction
-
-# Install Node dependencies (keep for dev)
-RUN npm install
-
-USER www-data
-
-EXPOSE 8080
-
-CMD ["php-fpm"]
+# Use supervisor to run both Nginx and PHP-FPM
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
