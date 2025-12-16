@@ -1,0 +1,7 @@
+[mysqld]
+max_allowed_packet=256M
+innodb_buffer_pool_size=1G
+innodb_log_file_size=256M
+innodb_flush_log_at_trx_commit=2
+slow_query_log=1
+long_query_time=2
