@@ -1,12 +1,8 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\SessionController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-Route::get('/', function () {
-    return response()->json(['message' => 'Hello, World!']);
-});
+Route::post('/login', [SessionController::class, 'create']);
+Route::delete('/logout', [SessionController::class, 'destroy'])->middleware('auth:sanctum');
+Route::get('/me', [SessionController::class, 'me'])->middleware('auth:sanctum');

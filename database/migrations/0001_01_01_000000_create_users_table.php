@@ -1,5 +1,6 @@
 <?php
 
+use App\UserStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,18 +14,17 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
+            $table->string('first_name', 150);
+            $table->string('last_name', 150);
+            $table->string('middle_name', 150);
+            $table->string('email', 150)->unique();
+            $table->string('phone', 50)->nullable();
+            $table->string('national_id', 50)->nullable();
+            $table->date('date_of_birth')->nullable();
+            $table->text('address')->nullable();
+            $table->string('status')->default(UserStatus::ACTIVE->value);
+            $table->text('password_hash');
             $table->timestamps();
-        });
-
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -43,7 +43,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
 };
