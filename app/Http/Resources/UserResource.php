@@ -26,6 +26,7 @@ class UserResource extends JsonResource
             'address' => $this->address,
             'status' => $this->status,
             'roles' => $this->roles->pluck('name'),
+            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
     }
 }

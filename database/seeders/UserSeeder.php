@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserStatus;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -25,7 +26,7 @@ class UserSeeder extends Seeder
                 'national_id' => '1234567890',
                 'date_of_birth' => '1990-01-01',
                 'address' => '1234567890',
-                'status' => 'active',
+                'status' => UserStatus::ACTIVE,
                 'password_hash' => Hash::make('password'),
                 'roles' => ['Admin'],
             ],
@@ -38,7 +39,7 @@ class UserSeeder extends Seeder
                 'national_id' => '1234567890',
                 'date_of_birth' => '1990-01-01',
                 'address' => '1234567890',
-                'status' => 'active',
+                'status' => UserStatus::ACTIVE,
                 'password_hash' => Hash::make('password'),
                 'roles' => ['Teller'],
             ],
@@ -51,7 +52,7 @@ class UserSeeder extends Seeder
                 'national_id' => '1234567890',
                 'date_of_birth' => '1990-01-01',
                 'address' => '1234567890',
-                'status' => 'active',
+                'status' => UserStatus::ACTIVE,
                 'password_hash' => Hash::make('password'),
                 'roles' => ['Customer'],
             ]
