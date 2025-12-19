@@ -90,7 +90,7 @@ class SchedulerService
     /**
      * Process a single scheduled transaction.
      */
-    private function processSingleScheduledTransaction(ScheduledTransaction $scheduled): Transaction
+    public function processSingleScheduledTransaction(ScheduledTransaction $scheduled): Transaction
     {
         return DB::transaction(function () use ($scheduled) {
             // Update next execution before processing to avoid duplicate processing
