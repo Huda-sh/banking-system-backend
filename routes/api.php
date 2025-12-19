@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -19,4 +20,25 @@ Route::controller(UserController::class)
         Route::post('/', 'create')->name('create');
         Route::post('/{user_id}', 'update')->name('update');
         Route::patch('/{user_id}/status', 'updateStatus')->name('updateStatus');
-});
+    });
+
+// Account Routes
+Route::controller(AccountGroupController::class)
+    ->prefix('accounts')
+    ->name('accounts.')
+    ->middleware(['auth:sanctum', 'role:Admin,Teller,Manager'])
+    ->group(function () {
+        // Account Creation Data
+        Route::get('/creation-data', 'getCreationData')->name('creation-data');
+        
+        // Account Groups
+        Route::post('/groups', 'createGroup')->name('groups.create');
+        Route::get('/groups', 'index')->name('groups.index');
+        Route::get('/groups/{accountGroupId}', 'show')->name('groups.show');
+        
+        // Account Leaves
+        Route::post('/leaves', 'createLeaf')->name('leaves.create');
+        
+        // State Management
+        Route::patch('/{accountId}/state', 'updateState')->name('state.update');
+    });

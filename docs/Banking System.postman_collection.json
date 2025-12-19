@@ -1,0 +1,869 @@
+{
+	"info": {
+		"_postman_id": "85ccffb1-d89c-4f8a-a396-d3811cc160d8",
+		"name": "Banking System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50486675",
+		"_collection_link": "https://ite-seniors-3587964.postman.co/workspace/ITE-Senior's-Workspace~7666ad9c-a055-41ef-8c33-516f8fd1d630/collection/50486675-85ccffb1-d89c-4f8a-a396-d3811cc160d8?action=share&source=collection_link&creator=50486675"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.token) {",
+									"        // Save the token as environment variable",
+									"        pm.environment.set('banking_token', response.token);",
+									"        console.log('Token saved to environment variable: banking_token');",
+									"        console.log('Token:', response.token);",
+									"    } else {",
+									"        console.log('Login response did not contain a token');",
+									"    }",
+									"} else {",
+									"    console.log('Login failed with status code:', pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "email",
+									"value": "john.doe@example.com",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "password",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{banking_url}}/login",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{banking_url}}/logout",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "My Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{banking_url}}/me",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{banking_url}}/users?role=Teller",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"users"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "John",
+									"description": "Search by name, email, etc.",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filter by status: active, inactive",
+									"disabled": true
+								},
+								{
+									"key": "role",
+									"value": "Teller",
+									"description": "Filter by role name (Admin, Teller, Manager, Customer)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{banking_url}}/users/:id",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "User ID"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "first_name",
+									"value": "Huda",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "last_name",
+									"value": "Shakir",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "middle_name",
+									"value": "Firas",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "huda.f.shakir@gmail.com",
+									"description": "Required, valid email, unique",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "0935570323",
+									"description": "Optional, numeric only, uniquev",
+									"type": "text"
+								},
+								{
+									"key": "national_id",
+									"value": "132456978",
+									"description": "Required, numeric only, unique",
+									"type": "text"
+								},
+								{
+									"key": "date_of_birth",
+									"value": "2002-03-14",
+									"description": "Required, format Y-m-d, before today",
+									"type": "text"
+								},
+								{
+									"key": "address",
+									"value": "123 Main St",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "roles[]",
+									"value": "Customer",
+									"description": "Required, min 8 characters",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{banking_url}}/users",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "first_name",
+									"value": "John",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "last_name",
+									"value": "Doe",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "middle_name",
+									"value": "Smith",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "johnn@example.com",
+									"description": "Required, valid email, unique",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "1234567898",
+									"description": "Optional, numeric only, uniquev",
+									"type": "text"
+								},
+								{
+									"key": "national_id",
+									"value": "123456788",
+									"description": "Required, numeric only, unique",
+									"type": "text"
+								},
+								{
+									"key": "date_of_birth",
+									"value": "1990-01-15",
+									"description": "Required, format Y-m-d, before today",
+									"type": "text"
+								},
+								{
+									"key": "address",
+									"value": "123 Main St",
+									"description": "Required, max 255 characters",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "password123",
+									"description": "Required, min 8 characters",
+									"type": "text"
+								},
+								{
+									"key": "roles[]",
+									"value": "Teller",
+									"description": "Required, array of role names",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{banking_url}}/users/:id",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"inactive\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{banking_url}}/users/:id/status",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"users",
+								":id",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Accounts",
+			"item": [
+				{
+					"name": "Get Account Creation Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{banking_url}}/accounts/creation-data",
+							"host": [
+								"{{banking_url}}"
+							],
+							"path": [
+								"accounts",
+								"creation-data"
+							]
+						},
+						"description": "Get all data needed for creating accounts or account groups. Returns minimal data for:\n- Users (id, name, email)\n- Account Types (id, name)\n- Features (id, label)\n- Account Groups (id, account_number, currency)"
+					},
+					"response": []
+				},
+				{
+					"name": "Account Groups",
+					"item": [
+						{
+							"name": "Create Account Group",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"account_type_id\": 1,\n    \"currency\": \"USD\",\n    \"user_ids\": [1, 2],\n    \"owner_user_id\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/groups",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										"groups"
+									]
+								},
+								"description": "Create a new account group. Requires: Admin, Teller, or Manager role.\n\n**Required Fields:**\n- `account_type_id`: ID of the account type\n- `currency`: 3-letter uppercase currency code (e.g., USD, EUR)\n- `owner_user_id`: ID of the primary owner (must exist in user_ids)\n\n**Optional Fields:**\n- `user_ids`: Array of user IDs to assign to the account group"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Account Groups",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{banking_url}}/accounts/groups?account_number=&per_page=15&page=1",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										"groups"
+									],
+									"query": [
+										{
+											"key": "account_number",
+											"value": "",
+											"description": "Search by account number (optional)",
+											"disabled": true
+										},
+										{
+											"key": "per_page",
+											"value": "15",
+											"description": "Number of items per page (default: 15)",
+											"disabled": true
+										},
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Page number (default: 1)",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get all account groups with nested children. Returns complete account data including users, account type, features, and all child accounts.\n\n**Query Parameters:**\n- `account_number` (optional): Search by account number\n- `per_page` (optional): Number of items per page (default: 15)\n- `page` (optional): Page number (default: 1)\n\n**Response includes pagination metadata:**\n- `current_page`: Current page number\n- `per_page`: Items per page\n- `total`: Total number of items\n- `last_page`: Last page number\n- `from`: First item number on current page\n- `to`: Last item number on current page"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Account Group by ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{banking_url}}/accounts/groups/:accountGroupId",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										"groups",
+										":accountGroupId"
+									],
+									"variable": [
+										{
+											"key": "accountGroupId",
+											"value": "1",
+											"description": "Account group ID"
+										}
+									]
+								},
+								"description": "Get a specific account group with nested children. Returns complete account data including users, account type, features, and all child accounts."
+							},
+							"response": []
+						}
+					],
+					"description": "Endpoints for managing account groups (parent accounts)"
+				},
+				{
+					"name": "Account Leaves",
+					"item": [
+						{
+							"name": "Create Account Leaf (Standalone)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"account_type_id\": 1,\n    \"parent_account_id\": null,\n    \"currency\": \"USD\",\n    \"initial_deposit\": 1000.00,\n    \"user_ids\": [1],\n    \"owner_user_id\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/leaves",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										"leaves"
+									]
+								},
+								"description": "Create a new standalone individual account (leaf). Requires: Admin, Teller, or Manager role.\n\n**Required Fields:**\n- `account_type_id`: ID of the account type\n- `initial_deposit`: Starting balance (must be >= 0)\n- `owner_user_id`: ID of the primary owner\n- `currency`: 3-letter uppercase currency code (required when no parent_account_id)\n\n**Optional Fields:**\n- `parent_account_id`: ID of parent account group (if null, currency must be provided)\n- `user_ids`: Array of user IDs to assign to the account"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Account Leaf (Child Account)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"account_type_id\": 2,\n    \"parent_account_id\": 1,\n    \"initial_deposit\": 500.00,\n    \"user_ids\": [1],\n    \"owner_user_id\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/leaves",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										"leaves"
+									]
+								},
+								"description": "Create a child account under an account group. Currency is automatically inherited from parent, so currency field is not needed."
+							},
+							"response": []
+						}
+					],
+					"description": "Endpoints for managing individual accounts (leaf accounts)"
+				},
+				{
+					"name": "Account State Management",
+					"item": [
+						{
+							"name": "Update Account State to Active",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"state\": \"active\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/:accountId/state",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										":accountId",
+										"state"
+									],
+									"variable": [
+										{
+											"key": "accountId",
+											"value": "1",
+											"description": "Account ID"
+										}
+									]
+								},
+								"description": "Update account state to 'active'. Cannot transition from 'closed' state. Requires Admin if transitioning from 'suspended'."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Account State to Frozen",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"state\": \"frozen\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/:accountId/state",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										":accountId",
+										"state"
+									],
+									"variable": [
+										{
+											"key": "accountId",
+											"value": "1",
+											"description": "Account ID"
+										}
+									]
+								},
+								"description": "Update account state to 'frozen'. Account will be denied withdrawals, debit transfers, and modifications. Requires Admin if transitioning from 'suspended'."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Account State to Suspended",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"state\": \"suspended\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/:accountId/state",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										":accountId",
+										"state"
+									],
+									"variable": [
+										{
+											"key": "accountId",
+											"value": "1",
+											"description": "Account ID"
+										}
+									]
+								},
+								"description": "Update account state to 'suspended'. Only Admin users can transition to/from suspended state. Account will only be allowed to view balance."
+							},
+							"response": []
+						},
+						{
+							"name": "Update Account State to Closed",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"state\": \"closed\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{banking_url}}/accounts/:accountId/state",
+									"host": [
+										"{{banking_url}}"
+									],
+									"path": [
+										"accounts",
+										":accountId",
+										"state"
+									],
+									"variable": [
+										{
+											"key": "accountId",
+											"value": "1",
+											"description": "Account ID"
+										}
+									]
+								},
+								"description": "Update account state to 'closed'. Account balance must be 0 before closing. Requires Admin if transitioning from 'suspended'."
+							},
+							"response": []
+						}
+					],
+					"description": "Endpoints for managing account state transitions"
+				}
+			],
+			"description": "Endpoints for managing accounts, account groups, and account state transitions"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{banking_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "banking_url",
+			"value": "",
+			"type": "default"
+		}
+	]
+}
