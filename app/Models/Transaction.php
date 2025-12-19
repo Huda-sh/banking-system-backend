@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Enums\TransactionType;
 use App\Enums\TransactionStatus;
+use App\Enums\Direction;
 use App\Models\Concerns\HasTransactionHistory;
 use App\Models\Concerns\HasApprovalWorkflow;
 use App\Exceptions\InvalidTransactionException;
@@ -18,7 +19,7 @@ class Transaction extends Model
 
     protected $fillable = [
         'from_account_id', 'to_account_id', 'amount', 'currency',
-        'type', 'status', 'fee', 'initiated_by', 'processed_by',
+        'type', 'status', 'direction', 'fee', 'initiated_by', 'processed_by',
         'approved_by', 'approved_at', 'description', 'ip_address', 'metadata'
     ];
 
@@ -27,6 +28,7 @@ class Transaction extends Model
         'fee' => 'decimal:2',
         'type' => TransactionType::class,
         'status' => TransactionStatus::class,
+        'direction' => Direction::class,
         'approved_at' => 'datetime',
         'metadata' => 'array'
     ];
@@ -243,6 +245,7 @@ class Transaction extends Model
             'id' => $this->id,
             'type' => $this->type->value,
             'status' => $this->status->value,
+            'direction' => $this->direction?->value,
             'amount' => $this->amount,
             'fee' => $this->fee,
             'net_amount' => $this->net_amount,
@@ -280,5 +283,38 @@ class Transaction extends Model
             ->whereDate('created_at', $date)
             ->where('status', TransactionStatus::COMPLETED)
             ->sum('amount');
+    }
+    /**
+     * Get the type label for display.
+     */
+    public function getTypeLabelAttribute(): string
+    {
+        return match($this->type) {
+            'deposit' => 'Deposit',
+            'withdrawal' => 'Withdrawal',
+            'transfer' => 'Transfer',
+            'scheduled' => 'Scheduled',
+            'loan_payment' => 'Loan Payment',
+            'interest_payment' => 'Interest Payment',
+            'fee_charge' => 'Fee Charge',
+            default => ucfirst($this->type)
+        };
+    }
+
+    /**
+     * Get the status label for display.
+     */
+    public function getStatusLabelAttribute(): string
+    {
+        return match($this->status) {
+            'pending' => 'Pending',
+            'pending_approval' => 'Pending Approval',
+            'approved' => 'Approved',
+            'completed' => 'Completed',
+            'failed' => 'Failed',
+            'cancelled' => 'Cancelled',
+            'reversed' => 'Reversed',
+            default => ucfirst($this->status)
+        };
     }
 }
