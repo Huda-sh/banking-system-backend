@@ -113,7 +113,6 @@ class UserService
      * - date_of_birth: string (Y-m-d) or null
      * - address: string|null
      * - status: \App\Enums\UserStatus|string (optional, default active)
-     * - password_hash: string
      *
      * @param int $user_id
      * @param array{
@@ -126,7 +125,6 @@ class UserService
      *   date_of_birth?: string|null,
      *   address?: string|null,
      *   status?: \App\Enums\UserStatus|string,
-     *   password_hash: string
      * } $data
      * @param array<string> $roles
      * @return User
