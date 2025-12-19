@@ -25,5 +25,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AccountTypeSeeder::class,
         ]);
+
+        // Transactions
+        $this->call([
+            TransactionsSeeder::class,
+            TransactionApprovalsSeeder::class,
+            ScheduledTransactionsSeeder::class,
+        ]);
     }
 }
