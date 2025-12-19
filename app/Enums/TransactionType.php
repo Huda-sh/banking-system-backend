@@ -13,6 +13,12 @@ enum TransactionType: string
     case FEE_CHARGE = 'fee_charge';
     case REVERSAL = 'reversal';
     case ADJUSTMENT = 'adjustment';
+    case INTERNATIONAL_TRANSFER = 'international_transfer';
+    case ATM_WITHDRAWAL = 'atm_withdrawal';
+    case WIRE_TRANSFER = 'wire_transfer';
+    case LARGE_CASH_WITHDRAWAL = 'large_cash_withdrawal';
+
+    case OVERDRAFT ='over_draft';
 
     /**
      * Get the displayable label for the transaction type.
@@ -29,6 +35,10 @@ enum TransactionType: string
             self::FEE_CHARGE => 'Fee Charge',
             self::REVERSAL => 'Reversal',
             self::ADJUSTMENT => 'Adjustment',
+            self::INTERNATIONAL_TRANSFER => 'International Transfer',
+            self::ATM_WITHDRAWAL => 'ATM Withdrawal',
+            self::WIRE_TRANSFER => 'Wire Transfer',
+            self::LARGE_CASH_WITHDRAWAL => 'Large Cash Withdrawal',
         };
     }
 
@@ -47,112 +57,10 @@ enum TransactionType: string
             self::FEE_CHARGE => 'Service fee or charge applied to account',
             self::REVERSAL => 'Reversal of a previous transaction',
             self::ADJUSTMENT => 'Manual balance adjustment by administrator',
+            self::INTERNATIONAL_TRANSFER => 'Transfer between accounts in different currencies',
+            self::ATM_WITHDRAWAL => 'Cash withdrawal from ATM',
+            self::WIRE_TRANSFER => 'Electronic funds transfer via wire network',
+            self::LARGE_CASH_WITHDRAWAL => 'Large cash withdrawal requiring additional verification',
         };
-    }
-
-    /**
-     * Check if this transaction type affects account balance positively.
-     */
-    public function isCredit(): bool
-    {
-        return in_array($this, [self::DEPOSIT, self::INTEREST_PAYMENT, self::ADJUSTMENT]);
-    }
-
-    /**
-     * Check if this transaction type affects account balance negatively.
-     */
-    public function isDebit(): bool
-    {
-        return in_array($this, [self::WITHDRAWAL, self::FEE_CHARGE]);
-    }
-
-    /**
-     * Check if this transaction type involves movement between accounts.
-     */
-    public function isTransfer(): bool
-    {
-        return in_array($this, [self::TRANSFER, self::LOAN_PAYMENT]);
-    }
-
-    /**
-     * Check if this transaction type is automated/recurring.
-     */
-    public function isAutomated(): bool
-    {
-        return in_array($this, [self::SCHEDULED, self::INTEREST_PAYMENT]);
-    }
-
-    /**
-     * Get transaction types that require from_account.
-     */
-    public static function requiresFromAccount(): array
-    {
-        return [
-            self::WITHDRAWAL->value,
-            self::TRANSFER->value,
-            self::LOAN_PAYMENT->value,
-            self::FEE_CHARGE->value,
-            self::REVERSAL->value
-        ];
-    }
-
-    /**
-     * Get transaction types that require to_account.
-     */
-    public static function requiresToAccount(): array
-    {
-        return [
-            self::DEPOSIT->value,
-            self::TRANSFER->value,
-            self::LOAN_PAYMENT->value,
-            self::INTEREST_PAYMENT->value,
-            self::ADJUSTMENT->value
-        ];
-    }
-
-    /**
-     * Validate if a transaction type is valid for given account types.
-     */
-    public function isValidForAccountTypes(?string $fromAccountType = null, ?string $toAccountType = null): bool
-    {
-        // Basic validation - all types are generally valid
-        if ($this === self::DEPOSIT) {
-            return $toAccountType !== null;
-        }
-
-        if ($this === self::WITHDRAWAL) {
-            return $fromAccountType !== null;
-        }
-
-        if ($this === self::TRANSFER) {
-            return $fromAccountType !== null && $toAccountType !== null;
-        }
-
-        return true;
-    }
-
-    /**
-     * Get all transaction types as an array.
-     */
-    public static function toArray(): array
-    {
-        return array_map(fn($case) => [
-            'value' => $case->value,
-            'label' => $case->getLabel(),
-            'description' => $case->getDescription()
-        ], self::cases());
-    }
-
-    /**
-     * Get transaction type by value.
-     */
-    public static function fromValue(string $value): ?self
-    {
-        foreach (self::cases() as $case) {
-            if ($case->value === $value) {
-                return $case;
-            }
-        }
-        return null;
     }
 }
