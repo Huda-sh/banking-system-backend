@@ -30,7 +30,6 @@ class CreateUserRequest extends FormRequest
             'national_id' => 'required|string|max:255|regex:/^[0-9]+$/|unique:users,national_id',
             'date_of_birth' => 'required|date_format:Y-m-d|before:today',
             'address' => 'required|string|max:255',
-            'password' => 'required|string|min:8',
             'roles' => 'required|array',
             'roles.*' => 'required|string',
         ];

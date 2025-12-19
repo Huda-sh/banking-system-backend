@@ -3,11 +3,14 @@
 namespace App\Services;
 
 use App\Enums\UserStatus;
+use App\Mail\UserPasswordMail;
 use App\Models\Role;
 use App\Models\User;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class UserService
 {
@@ -22,7 +25,7 @@ class UserService
      * }
      * @return LengthAwarePaginator
      */
-    public function get(array $filters) : LengthAwarePaginator
+    public function get(array $filters): LengthAwarePaginator
     {
         $query = User::query()->with('roles')->orderBy('created_at', 'desc');
         if ($filters['search']) {
@@ -61,7 +64,8 @@ class UserService
      * - date_of_birth: string (Y-m-d) or null
      * - address: string|null
      * - status: \App\Enums\UserStatus|string (optional, default active)
-     * - password_hash: string
+     *
+     * Password is automatically generated and sent via email.
      *
      * @param array{
      *   first_name: string,
@@ -72,18 +76,27 @@ class UserService
      *   national_id?: string|null,
      *   date_of_birth?: string|null,
      *   address?: string|null,
-     *   status?: \App\Enums\UserStatus|string,
-     *   password_hash: string
+     *   status?: \App\Enums\UserStatus|string
      * } $data
      * @param array<string> $roles
      * @return User
      */
-    public function create(array $data, array $roles) : User
+    public function create(array $data, array $roles): User
     {
-        $data['password_hash'] = Hash::make($data['password']);
+        // Generate a secure random password (12 characters by default)
+        $password = Str::password(12);
+
+        // Hash the password
+        $data['password_hash'] = Hash::make($password);
         $data['status'] = UserStatus::ACTIVE;
+
+        // Create the user
         $user = User::create($data);
         $user->roles()->attach(Role::whereIn('name', $roles)->pluck('id'));
+
+        // Send password email
+        Mail::to($user->email)->send(new UserPasswordMail($user, $password));
+
         return $user;
     }
 
@@ -119,7 +132,7 @@ class UserService
      * @return User
      * @throws NotFoundHttpException if the user is not found
      */
-    public function update(int $user_id, array $data, array $roles) : User
+    public function update(int $user_id, array $data, array $roles): User
     {
         $user = User::find($user_id);
         if (!$user) {
@@ -138,10 +151,10 @@ class UserService
      * @return User
      * @throws NotFoundHttpException if the user is not found
      */
-    public function updateStatus(int $user_id, string $status) : User
+    public function updateStatus(int $user_id, string $status): User
     {
         $user = User::find($user_id);
-        if (!$user) {   
+        if (!$user) {
             throw new NotFoundHttpException('User not found');
         }
         $user->status = $status;
@@ -156,7 +169,7 @@ class UserService
      * @return User|null
      * @throws NotFoundHttpException if the user is not found
      */
-    public function getById(int $user_id) : User
+    public function getById(int $user_id): User
     {
         $user = User::find($user_id);
         if (!$user) {
