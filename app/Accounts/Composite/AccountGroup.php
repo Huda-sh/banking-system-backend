@@ -3,20 +3,49 @@
 namespace App\Accounts\Composite;
 
 use App\Accounts\Contracts\AccountComponent;
+use App\Accounts\Contracts\AccountState;
 use App\Models\Account;
+use App\Models\User;
 
-class AccountGroup implements AccountComponent {
-    public function __construct(private Account $account) {}
+class AccountGroup implements AccountComponent
+{
+    public function __construct(public readonly Account $account) {}
 
     public function getBalance(): float
     {
-        // TODO: implement get balance for account group
-        return $this->account->balance;
+        // Group balance is the sum of all children account balances
+        $totalBalance = (float) $this->account->balance;
+
+        foreach ($this->account->childrenAccounts as $child) {
+            $totalBalance += (float) $child->balance;
+        }
+
+        return $totalBalance;
     }
 
-    public function checkCanUpdateState(): bool
+    public function applyState(AccountState $state, User $changedBy): AccountComponent
     {
-        // TODO: implement check can update state for account group
-        return $this->account->checkCanUpdateState();
+        // Transition group to new state (validates and creates state record)
+        $state->transition($this, $changedBy);
+
+        // Cascade state change to all children using Composite pattern
+        $children = $this->account->childrenAccounts;
+        foreach ($children as $child) {
+            $childLeaf = new AccountLeaf($child);
+            $childLeaf->applyState($state, $changedBy);
+        }
+
+        // Reload relationships
+        $this->account->load([
+            'accountType',
+            'users',
+            'currentState',
+            'childrenAccounts.accountType',
+            'childrenAccounts.users',
+            'childrenAccounts.currentState',
+            'features'
+        ]);
+
+        return $this;
     }
 }

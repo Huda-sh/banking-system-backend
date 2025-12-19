@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Account extends Model
 {
@@ -40,5 +41,15 @@ class Account extends Model
     public function childrenAccounts(): HasMany
     {
         return $this->hasMany(Account::class, 'parent_account_id');
+    }
+
+    public function states(): HasMany
+    {
+        return $this->hasMany(AccountState::class);
+    }
+
+    public function currentState(): HasOne
+    {
+        return $this->hasOne(AccountState::class)->latestOfMany();
     }
 }

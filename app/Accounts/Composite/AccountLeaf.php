@@ -3,20 +3,34 @@
 namespace App\Accounts\Composite;
 
 use App\Accounts\Contracts\AccountComponent;
+use App\Accounts\Contracts\AccountState;
 use App\Models\Account;
+use App\Models\User;
 
-class AccountLeaf implements AccountComponent {
-    public function __construct(private Account $account) {}
+class AccountLeaf implements AccountComponent
+{
+    public function __construct(public readonly Account $account) {}
 
     public function getBalance(): float
     {
-        // TODO: implement get balance for account leaf using the strategy
-        return $this->account->balance;
+        // Leaf account balance is calculated from transactions
+        // For now, return the stored balance (transactions to be implemented)
+        return (float) $this->account->balance;
     }
 
-    public function checkCanUpdateState(): bool
+    public function applyState(AccountState $state, User $changedBy): AccountComponent
     {
-        // TODO: implement check can update state for account leaf using the strategy
-        return $this->account->checkCanUpdateState();
+        // Transition leaf to new state (validates and creates state record)
+        $state->transition($this, $changedBy);
+
+        // Reload relationships
+        $this->account->load([
+            'accountType',
+            'users',
+            'currentState',
+            'features'
+        ]);
+
+        return $this;
     }
 }

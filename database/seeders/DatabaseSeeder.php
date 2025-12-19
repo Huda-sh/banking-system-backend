@@ -20,5 +20,10 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserSeeder::class,
         ]);
+
+        // Accounts
+        $this->call([
+            AccountTypeSeeder::class,
+        ]);
     }
 }
