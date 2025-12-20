@@ -213,8 +213,10 @@ class TransactionController extends Controller
         // Get paginated results with relationships
         $perPage = $request->input('per_page', 15);
         $transactions = $query->with([
-            'sourceAccount:id,account_number,currency',
-            'targetAccount:id,account_number,currency'
+            'sourceAccount:id,account_number,currency,account_type_id',
+            'sourceAccount.accountType:id,name',
+            'targetAccount:id,account_number,currency,account_type_id',
+            'targetAccount.accountType:id,name'
         ])
             ->latest()
             ->paginate($perPage);
@@ -240,14 +242,14 @@ class TransactionController extends Controller
                     'id' => $transaction->sourceAccount->id,
                     'account_number' => $transaction->sourceAccount->account_number,
                     'currency' => $transaction->sourceAccount->currency,
-                    'account_type'=>$transaction->sourceAccount->accountType,
+                    'account_type'=>$transaction->sourceAccount->accountType->name ?? null,
 
                 ] : null,
                 'target_account' => $transaction->targetAccount ? [
                     'id' => $transaction->targetAccount->id,
                     'account_number' => $transaction->targetAccount->account_number,
                     'currency' => $transaction->targetAccount->currency,
-                    'account_type'=>$transaction->sourceAccount->accountType,
+                    'account_type'=>$transaction->targetAccount->accountType->name ?? null,
 
                 ] : null
             ];
