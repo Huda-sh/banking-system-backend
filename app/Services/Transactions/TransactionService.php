@@ -2,22 +2,14 @@
 
 namespace App\Services\Transactions;
 
-use App\Models\Transaction;
-use App\Models\Account;
-use App\Models\User;
-use App\Enums\TransactionType;
+use App\Enums\Direction;
 use App\Enums\TransactionStatus;
-use App\Enums\ApprovalLevel;
-use App\Exceptions\InsufficientBalanceException;
-use App\Exceptions\AccountStateException;
-use App\Exceptions\DailyLimitExceededException;
-use App\Exceptions\ApprovalRequiredException;
+use App\Enums\TransactionType;
+use App\Models\Transaction;
+use App\Models\User;
+use App\Models\Account;
 use App\Exceptions\TransactionException;
-use App\Patterns\ChainOfResponsibility\Interfaces\TransactionHandler;
-use App\Patterns\ChainOfResponsibility\HandlerChainFactory;
-use App\Patterns\Observer\TransactionSubject;
-use App\Services\Transactions\ApprovalWorkflowService;
-use App\Services\Transactions\FeeCalculationService;
+use App\Exceptions\ApprovalException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -25,380 +17,403 @@ use Carbon\Carbon;
 class TransactionService
 {
     /**
-     * TransactionService constructor.
+     * Process a transaction based on the provided data.
      */
-    public function __construct(
-        private HandlerChainFactory $handlerChainFactory,
-        private TransactionSubject $transactionSubject,
-        private ApprovalWorkflowService $approvalWorkflowService,
-        private FeeCalculationService $feeCalculationService
-    ) {}
+    public function process(array $data, User $user): Transaction
+    {
+        DB::beginTransaction();
+
+        try {
+            // Validate transaction data
+            $this->validateTransactionData($data, $user);
+
+            // Create transaction record
+            $transaction = $this->createTransaction($data, $user);
+
+            // Process the transaction based on type
+            $this->processTransactionType($transaction);
+
+            // Check if approval is required
+            if ($this->requiresApproval($transaction, $user)) {
+                $transaction->update(['status' => TransactionStatus::PENDING_APPROVAL]);
+                DB::commit();
+                throw new ApprovalException($transaction);
+            }
+
+            // Execute the transaction
+            $this->executeTransaction($transaction);
+
+            DB::commit();
+
+            return $transaction;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Transaction processing failed', [
+                'user_id' => $user->id,
+                'data' => $data,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
 
     /**
-     * Process a transaction with validation and approval workflow.
-     *
-     * @throws \Exception
+     * Get transactions for a user with filters.
      */
-    public function process(array $data, User $initiatedBy): Transaction
+    public function getTransactionsForUser(User $user, array $filters = []): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
-        return DB::transaction(function () use ($data, $initiatedBy) {
-            // Create transaction record
-            $transaction = $this->createTransactionRecord($data, $initiatedBy);
+        $query = Transaction::query();
 
-            try {
-                // Validate transaction using Chain of Responsibility
-                $requiresApproval = $this->validateTransaction($transaction);
+        // Apply user-specific filters
+        if (!$user->hasRole('admin')) {
+            $query->where('initiated_by', $user->id);
+        }
 
-                if ($requiresApproval) {
-                    $transaction->status = TransactionStatus::PENDING_APPROVAL;
-                    $transaction->save();
+        // Apply filters
+        if (isset($filters['account_id'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('source_account_id', $filters['account_id'])
+                    ->orWhere('target_account_id', $filters['account_id']);
+            });
+        }
 
-                    // Start approval workflow
-                    $this->approvalWorkflowService->startWorkflow($transaction);
+        if (isset($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
 
-                    throw new ApprovalRequiredException(
-                        'Transaction requires approval. Current status: ' . $transaction->status->getLabel(),
-                        $transaction
-                    );
-                }
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
 
-                // Execute the transaction
-                $this->executeTransaction($transaction);
+        if (isset($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
 
-                // Update transaction status
-                $transaction->update([
-                    'status' => TransactionStatus::COMPLETED,
-                    'processed_by' => $initiatedBy->id,
-                    'approved_at' => now()
-                ]);
+        if (isset($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
+        }
 
-                // Notify observers
-                $this->notifyObservers($transaction);
+        if (isset($filters['min_amount'])) {
+            $query->where('amount', '>=', $filters['min_amount']);
+        }
 
-                return $transaction;
+        if (isset($filters['max_amount'])) {
+            $query->where('amount', '<=', $filters['max_amount']);
+        }
 
-            } catch (\Exception $e) {
-                $this->handleTransactionFailure($transaction, $e);
-                throw $e;
-            }
+        return $query->with(['sourceAccount', 'targetAccount', 'initiatedBy'])
+            ->latest()
+            ->paginate($filters['per_page'] ?? 15);
+    }
+
+    /**
+     * Get account history for a user.
+     */
+    public function getAccountHistory(User $user, string $accountId, array $filters = []): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        // Verify user has access to the account
+        $account = Account::findOrFail($accountId);
+        if (!$user->hasRole('admin') && !$user->accounts()->where('id', $accountId)->exists()) {
+            throw new TransactionException('Unauthorized access to account');
+        }
+
+        $query = Transaction::where(function ($q) use ($accountId) {
+            $q->where('source_account_id', $accountId)
+                ->orWhere('target_account_id', $accountId);
         });
+
+        // Apply filters
+        if (isset($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (isset($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
+
+        if (isset($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
+        }
+
+        return $query->with(['sourceAccount', 'targetAccount', 'initiatedBy'])
+            ->latest()
+            ->paginate($filters['per_page'] ?? 15);
+    }
+
+    /**
+     * Get user transaction summary.
+     */
+    public function getUserTransactionSummary(User $user, ?Carbon $startDate = null, ?Carbon $endDate = null): array
+    {
+        $query = Transaction::where('initiated_by', $user->id)
+            ->where('status', TransactionStatus::COMPLETED);
+
+        if ($startDate) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
+
+        $transactions = $query->get();
+
+        return [
+            'total_transactions' => $transactions->count(),
+            'total_amount' => $transactions->sum('amount'),
+            'total_fees' => $transactions->sum('fee'),
+            'by_type' => $transactions->groupBy('type')->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'amount' => $group->sum('amount'),
+                    'fees' => $group->sum('fee')
+                ];
+            }),
+            'by_status' => $transactions->groupBy('status')->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'amount' => $group->sum('amount')
+                ];
+            })
+        ];
+    }
+
+    /**
+     * Reverse a transaction.
+     */
+    public function reverse(Transaction $transaction, User $user, string $reason): Transaction
+    {
+        if (!$this->canReverseTransaction($transaction, $user)) {
+            throw new TransactionException('Transaction cannot be reversed');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Create reversal transaction
+            $reversalData = [
+                'reference_number' => 'REV-' . $transaction->reference_number,
+                'description' => 'Reversal: ' . $transaction->description,
+                'source_account_id' => $transaction->target_account_id,
+                'target_account_id' => $transaction->source_account_id,
+                'amount' => $transaction->amount,
+                'currency' => $transaction->currency,
+                'type' => $transaction->type,
+                'direction' => $transaction->direction === Direction::DEBIT ? Direction::CREDIT : Direction::DEBIT,
+                'initiated_by' => $user->id,
+                'processed_by' => $user->id,
+                'status' => TransactionStatus::COMPLETED
+            ];
+
+            $reversalTransaction = Transaction::create($reversalData);
+
+            // Update original transaction status
+            $transaction->update(['status' => TransactionStatus::APPROVAL_NOT_REQUIRED]);
+
+            // Execute the reversal
+            $this->executeTransaction($reversalTransaction);
+
+            DB::commit();
+
+            return $reversalTransaction;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Transaction reversal failed', [
+                'transaction_id' => $transaction->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Cancel a transaction.
+     */
+    public function cancel(Transaction $transaction, User $user, string $reason): bool
+    {
+        if (!$this->canCancelTransaction($transaction, $user)) {
+            throw new TransactionException('Transaction cannot be cancelled');
+        }
+
+        $transaction->update([
+            'status' => TransactionStatus::CANCELLED,
+            'processed_by' => $user->id
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Validate transaction data.
+     */
+    private function validateTransactionData(array $data, User $user): void
+    {
+        // Basic validation
+        if (!isset($data['type']) || !in_array($data['type'], ['deposit', 'withdrawal', 'transfer'])) {
+            throw new TransactionException('Invalid transaction type');
+        }
+
+        if (!isset($data['amount']) || $data['amount'] <= 0) {
+            throw new TransactionException('Invalid amount');
+        }
+
+        // Type-specific validation
+        switch ($data['type']) {
+            case 'deposit':
+                if (!isset($data['target_account_id'])) {
+                    throw new TransactionException('Target account is required for deposits');
+                }
+                break;
+
+            case 'withdrawal':
+                if (!isset($data['source_account_id'])) {
+                    throw new TransactionException('Source account is required for withdrawals');
+                }
+                break;
+
+            case 'transfer':
+                if (!isset($data['source_account_id']) || !isset($data['target_account_id'])) {
+                    throw new TransactionException('Both source and target accounts are required for transfers');
+                }
+                if ($data['source_account_id'] === $data['target_account_id']) {
+                    throw new TransactionException('Source and target accounts cannot be the same');
+                }
+                break;
+        }
+
+        // Account ownership validation
+        if (isset($data['source_account_id'])) {
+            $sourceAccount = Account::find($data['source_account_id']);
+            if (!$sourceAccount || (!$user->hasRole('admin') && !$user->accounts()->where('id', $data['source_account_id'])->exists())) {
+                throw new TransactionException('Invalid source account');
+            }
+        }
+
+        if (isset($data['target_account_id'])) {
+            $targetAccount = Account::find($data['target_account_id']);
+            if (!$targetAccount || (!$user->hasRole('admin') && !$user->accounts()->where('id', $data['target_account_id'])->exists())) {
+                throw new TransactionException('Invalid target account');
+            }
+        }
     }
 
     /**
      * Create transaction record.
      */
-    private function createTransactionRecord(array $data, User $initiatedBy): Transaction
+    private function createTransaction(array $data, User $user): Transaction
     {
-        // Calculate fee using Strategy pattern
-        $fee = $this->feeCalculationService->calculateFee(
-            $data['type'],
-            $data['amount'],
-            $data['from_account_id'] ?? null,
-            $data['to_account_id']
-        );
-
-        return Transaction::create([
-            'from_account_id' => $data['from_account_id'] ?? null,
-            'to_account_id' => $data['to_account_id'],
+        $transactionData = [
+            'reference_number' => $data['reference_number'] ?? $this->generateReferenceNumber(),
+            'description' => $data['description'] ?? '',
+            'source_account_id' => $data['source_account_id'] ?? null,
+            'target_account_id' => $data['target_account_id'] ?? null,
             'amount' => $data['amount'],
             'currency' => $data['currency'] ?? 'USD',
             'type' => $data['type'],
-            'status' => TransactionStatus::PENDING,
-            'fee' => $fee,
-            'initiated_by' => $initiatedBy->id,
-            'description' => $data['description'] ?? $this->getDefaultDescription($data['type']),
-            'ip_address' => request()->ip() ?? 'system',
-            'metadata' => $data['metadata'] ?? []
-        ]);
+            'direction' => $this->determineDirection($data),
+            'initiated_by' => $user->id,
+            'status' => TransactionStatus::PENDING
+        ];
+
+        return Transaction::create($transactionData);
     }
 
     /**
-     * Validate transaction using Chain of Responsibility pattern.
-     *
-     * @return bool True if approval is required, false otherwise
+     * Process transaction based on type.
      */
-    private function validateTransaction(Transaction $transaction): bool
+    private function processTransactionType(Transaction $transaction): void
     {
-        $handlerChain = $this->handlerChainFactory->createChain();
-        return !$handlerChain->handle($transaction);
+        // Additional processing based on transaction type
+        // This could include creating related records in deposits, withdrawals, transfers tables
     }
 
     /**
-     * Execute the transaction (update account balances).
+     * Check if transaction requires approval.
+     */
+    private function requiresApproval(Transaction $transaction, User $user): bool
+    {
+        // Approval logic based on amount, user role, etc.
+        // For now, require approval for transactions over $1000
+        return $transaction->amount > 1000;
+    }
+
+    /**
+     * Execute the transaction.
      */
     private function executeTransaction(Transaction $transaction): void
     {
-        if ($transaction->isDeposit()) {
-            $this->processDeposit($transaction);
-        } elseif ($transaction->isWithdrawal()) {
-            $this->processWithdrawal($transaction);
-        } elseif ($transaction->isTransfer()) {
-            $this->processTransfer($transaction);
-        } else {
-            throw new TransactionException('Unsupported transaction type: ' . $transaction->type->value);
+        // Update account balances
+        switch ($transaction->type) {
+            case TransactionType::DEPOSIT:
+                $targetAccount = Account::find($transaction->target_account_id);
+                $targetAccount->increment('balance', $transaction->amount);
+                break;
+
+            case TransactionType::WITHDRAWAL:
+                $sourceAccount = Account::find($transaction->source_account_id);
+                $sourceAccount->decrement('balance', $transaction->amount);
+                break;
+
+            case TransactionType::TRANSFER:
+                $sourceAccount = Account::find($transaction->source_account_id);
+                $targetAccount = Account::find($transaction->target_account_id);
+                $sourceAccount->decrement('balance', $transaction->amount);
+                $targetAccount->increment('balance', $transaction->amount);
+                break;
         }
-    }
-
-    /**
-     * Process a deposit transaction.
-     */
-    private function processDeposit(Transaction $transaction): void
-    {
-        $toAccount = Account::findOrFail($transaction->to_account_id);
-
-        if (!$toAccount->currentState->canReceiveDeposits()) {
-            throw new AccountStateException('Account cannot receive deposits in current state: ' . $toAccount->currentState->state);
-        }
-
-        $toAccount->increment('balance', $transaction->amount);
-    }
-
-    /**
-     * Process a withdrawal transaction.
-     */
-    private function processWithdrawal(Transaction $transaction): void
-    {
-        $fromAccount = Account::findOrFail($transaction->from_account_id);
-
-        if (!$fromAccount->currentState->canWithdraw()) {
-            throw new AccountStateException('Account cannot withdraw in current state: ' . $fromAccount->currentState->state);
-        }
-
-        $availableBalance = $fromAccount->getAvailableBalance();
-
-        if ($availableBalance < ($transaction->amount + $transaction->fee)) {
-            throw new InsufficientBalanceException(
-                sprintf('Insufficient balance. Available: %.2f, Required: %.2f',
-                    $availableBalance,
-                    $transaction->amount + $transaction->fee
-                )
-            );
-        }
-
-        $fromAccount->decrement('balance', $transaction->amount + $transaction->fee);
-    }
-
-    /**
-     * Process a transfer transaction.
-     */
-    private function processTransfer(Transaction $transaction): void
-    {
-        $fromAccount = Account::findOrFail($transaction->from_account_id);
-        $toAccount = Account::findOrFail($transaction->to_account_id);
-
-        // Validate accounts
-        if (!$fromAccount->currentState->canTransferFrom()) {
-            throw new AccountStateException('Source account cannot transfer in current state: ' . $fromAccount->currentState->state);
-        }
-
-        if (!$toAccount->currentState->canTransferTo()) {
-            throw new AccountStateException('Destination account cannot receive transfers in current state: ' . $toAccount->currentState->state);
-        }
-
-        // Check balance
-        $availableBalance = $fromAccount->getAvailableBalance();
-
-        if ($availableBalance < ($transaction->amount + $transaction->fee)) {
-            throw new InsufficientBalanceException(
-                sprintf('Insufficient balance. Available: %.2f, Required: %.2f',
-                    $availableBalance,
-                    $transaction->amount + $transaction->fee
-                )
-            );
-        }
-
-        // Execute transfer
-        $fromAccount->decrement('balance', $transaction->amount + $transaction->fee);
-        $toAccount->increment('balance', $transaction->amount);
-    }
-
-    /**
-     * Handle transaction failure and rollback.
-     */
-    private function handleTransactionFailure(Transaction $transaction, \Exception $exception): void
-    {
-        Log::error('Transaction failed', [
-            'transaction_id' => $transaction->id,
-            'error' => $exception->getMessage(),
-            'exception' => get_class($exception)
-        ]);
 
         $transaction->update([
-            'status' => TransactionStatus::FAILED,
-            'metadata' => array_merge($transaction->metadata ?? [], [
-                'error' => $exception->getMessage(),
-                'error_class' => get_class($exception),
-                'error_time' => now()->format('Y-m-d H:i:s')
-            ])
+            'status' => TransactionStatus::COMPLETED,
+            'processed_by' => $transaction->initiated_by
         ]);
     }
 
     /**
-     * Notify observers about transaction completion.
+     * Determine transaction direction.
      */
-    private function notifyObservers(Transaction $transaction): void
+    private function determineDirection(array $data): Direction
     {
-        $this->transactionSubject->attachObservers();
-        $this->transactionSubject->setTransaction($transaction);
-        $this->transactionSubject->notify();
-    }
-
-    /**
-     * Get default description based on transaction type.
-     */
-    private function getDefaultDescription(TransactionType $type): string
-    {
-        return match($type) {
-            TransactionType::DEPOSIT => 'Deposit transaction',
-            TransactionType::WITHDRAWAL => 'Withdrawal transaction',
-            TransactionType::TRANSFER => 'Transfer transaction',
-            TransactionType::SCHEDULED => 'Scheduled transaction',
-            TransactionType::LOAN_PAYMENT => 'Loan payment',
-            TransactionType::INTEREST_PAYMENT => 'Interest payment',
-            TransactionType::FEE_CHARGE => 'Fee charge',
-            TransactionType::REVERSAL => 'Reversal transaction',
-            TransactionType::ADJUSTMENT => 'Balance adjustment',
+        return match ($data['type']) {
+            'deposit' => Direction::CREDIT,
+            'withdrawal' => Direction::DEBIT,
+            'transfer' => Direction::DEBIT, // For the source account
+            default => Direction::DEBIT
         };
     }
 
     /**
-     * Reverse a completed transaction.
+     * Check if transaction can be reversed.
      */
-    public function reverse(Transaction $transaction, User $initiatedBy, ?string $reason = null): Transaction
+    private function canReverseTransaction(Transaction $transaction, User $user): bool
     {
-        if (!$transaction->canBeReversed()) {
-            throw new TransactionException('Transaction cannot be reversed. Status: ' . $transaction->status->value);
-        }
-
-        return DB::transaction(function () use ($transaction, $initiatedBy, $reason) {
-            // Create reversal transaction
-            $reversal = Transaction::create([
-                'from_account_id' => $transaction->to_account_id,
-                'to_account_id' => $transaction->from_account_id,
-                'amount' => $transaction->amount,
-                'currency' => $transaction->currency,
-                'type' => TransactionType::REVERSAL,
-                'status' => TransactionStatus::COMPLETED,
-                'fee' => 0.00, // No fee for reversals
-                'initiated_by' => $initiatedBy->id,
-                'processed_by' => $initiatedBy->id,
-                'approved_by' => $initiatedBy->id,
-                'approved_at' => now(),
-                'description' => "Reversal of transaction #{$transaction->id}: " . ($reason ?? 'No reason provided'),
-                'ip_address' => request()->ip() ?? 'system',
-                'metadata' => [
-                    'original_transaction_id' => $transaction->id,
-                    'reversal_reason' => $reason,
-                    'reversal_time' => now()->format('Y-m-d H:i:s')
-                ]
-            ]);
-
-            // Execute reversal
-            $this->executeReversal($transaction);
-
-            // Update original transaction status
-            $transaction->update([
-                'status' => TransactionStatus::REVERSED,
-                'metadata' => array_merge($transaction->metadata ?? [], [
-                    'reversed_by' => $initiatedBy->id,
-                    'reversed_at' => now()->format('Y-m-d H:i:s'),
-                    'reversal_transaction_id' => $reversal->id
-                ])
-            ]);
-
-            // Notify observers about reversal
-            $this->notifyObservers($reversal);
-
-            return $reversal;
-        });
+        return $transaction->status === TransactionStatus::COMPLETED &&
+               $transaction->created_at->diffInDays(now()) <= 30; // Within 30 days
     }
 
     /**
-     * Execute the reversal of a transaction.
+     * Check if transaction can be cancelled.
      */
-    private function executeReversal(Transaction $originalTransaction): void
+    private function canCancelTransaction(Transaction $transaction, User $user): bool
     {
-        if ($originalTransaction->isDeposit()) {
-            $account = Account::findOrFail($originalTransaction->to_account_id);
-            $account->decrement('balance', $originalTransaction->amount);
-        } elseif ($originalTransaction->isWithdrawal()) {
-            $account = Account::findOrFail($originalTransaction->from_account_id);
-            $account->increment('balance', $originalTransaction->amount + $originalTransaction->fee);
-        } elseif ($originalTransaction->isTransfer()) {
-            $fromAccount = Account::findOrFail($originalTransaction->from_account_id);
-            $toAccount = Account::findOrFail($originalTransaction->to_account_id);
-
-            $fromAccount->increment('balance', $originalTransaction->amount + $originalTransaction->fee);
-            $toAccount->decrement('balance', $originalTransaction->amount);
-        }
+        return in_array($transaction->status, [TransactionStatus::PENDING, TransactionStatus::PENDING_APPROVAL]);
     }
 
     /**
-     * Cancel a pending transaction.
+     * Generate unique reference number.
      */
-    public function cancel(Transaction $transaction, User $cancelledBy, ?string $reason = null): bool
+    private function generateReferenceNumber(): string
     {
-        if (!$transaction->canBeCancelled()) {
-            throw new TransactionException('Transaction cannot be cancelled. Status: ' . $transaction->status->value);
-        }
+        do {
+            $reference = 'TXN-' . strtoupper(substr(md5(uniqid()), 0, 8));
+        } while (Transaction::where('reference_number', $reference)->exists());
 
-        return DB::transaction(function () use ($transaction, $cancelledBy, $reason) {
-            $transaction->update([
-                'status' => TransactionStatus::CANCELLED,
-                'processed_by' => $cancelledBy->id,
-                'metadata' => array_merge($transaction->metadata ?? [], [
-                    'cancelled_by' => $cancelledBy->id,
-                    'cancelled_at' => now()->format('Y-m-d H:i:s'),
-                    'cancellation_reason' => $reason
-                ])
-            ]);
-
-            // Cancel any associated approvals
-            if ($transaction->requiresApproval()) {
-                $transaction->cancelPendingApprovals();
-            }
-
-            // Log the cancellation
-            Log::info('Transaction cancelled', [
-                'transaction_id' => $transaction->id,
-                'cancelled_by' => $cancelledBy->id,
-                'reason' => $reason
-            ]);
-
-            return true;
-        });
-    }
-
-    /**
-     * Get transaction summary for a user.
-     */
-    public function getUserTransactionSummary(User $user, ?Carbon $startDate = null, ?Carbon $endDate = null): array
-    {
-        $query = Transaction::where('initiated_by', $user->id);
-
-        if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
-        }
-
-        $summary = $query->selectRaw('
-            COUNT(*) as total_transactions,
-            SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed_count,
-            SUM(CASE WHEN status = "failed" THEN 1 ELSE 0 END) as failed_count,
-            SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) as cancelled_count,
-            SUM(amount) as total_amount,
-            SUM(fee) as total_fees
-        ')->first();
-
-        return [
-            'total_transactions' => $summary->total_transactions ?? 0,
-            'completed_count' => $summary->completed_count ?? 0,
-            'failed_count' => $summary->failed_count ?? 0,
-            'cancelled_count' => $summary->cancelled_count ?? 0,
-            'total_amount' => $summary->total_amount ?? 0,
-            'total_fees' => $summary->total_fees ?? 0,
-            'success_rate' => $summary->total_transactions > 0
-                ? round(($summary->completed_count / $summary->total_transactions) * 100, 2)
-                : 0
-        ];
+        return $reference;
     }
 }

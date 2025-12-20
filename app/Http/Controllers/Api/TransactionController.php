@@ -28,10 +28,7 @@ class TransactionController extends Controller
     public function __construct(
         private TransactionService $transactionService,
         private FeeCalculationService $feeCalculationService
-    ) {
-
-
-    }
+    ) {}
 
     /**
      * Display a listing of transactions.
@@ -95,7 +92,6 @@ class TransactionController extends Controller
                 'data' => new TransactionResource($transaction),
                 'message' => 'Transaction processed successfully'
             ], 201);
-
         } catch (ApprovalException $e) {
             $transaction = $e->getTransaction();
 
@@ -106,7 +102,6 @@ class TransactionController extends Controller
                 'message' => 'Transaction created and pending approval',
                 'approval_details' => $transaction->getApprovalWorkflowDetails()
             ], 202);
-
         } catch (TransactionException $e) {
             Log::warning('Transaction failed validation', [
                 'user_id' => $user->id,
@@ -118,7 +113,6 @@ class TransactionController extends Controller
                 'message' => $e->getMessage(),
                 'error_code' => $e->getCode()
             ], 422);
-
         } catch (\Exception $e) {
             Log::error('TransactionController@store error', [
                 'user_id' => $user->id,
@@ -137,13 +131,13 @@ class TransactionController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-//        $user = Auth::user();
+        //        $user = Auth::user();
 
         // Validate query parameters
         $validator = Validator::make($request->all(), [
             'from_date' => 'nullable|date_format:Y-m-d',
             'to_date' => 'nullable|date_format:Y-m-d|after_or_equal:from_date',
-            'direction'=>'nullable|in:' . implode(',', array_column(Direction::cases(), 'value')),
+            'direction' => 'nullable|in:' . implode(',', array_column(Direction::cases(), 'value')),
             'trans_type' => 'nullable|in:' . implode(',', array_column(TransactionType::cases(), 'value')),
             'status' => 'nullable|in:' . implode(',', array_column(TransactionStatus::cases(), 'value')),
             'account_id' => 'nullable|exists:accounts,id',
@@ -165,8 +159,8 @@ class TransactionController extends Controller
         if ($request->filled('account_id')) {
             $accountId = $request->account_id;
             $query->where(function ($q) use ($accountId) {
-                $q->where('from_account_id', $accountId)
-                    ->orWhere('to_account_id', $accountId);
+                $q->where('source_account_id', $accountId)
+                    ->orWhere('target_account_id', $accountId);
             });
         }
 
@@ -176,10 +170,10 @@ class TransactionController extends Controller
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('id', 'like', "%{$searchTerm}%")
                     ->orWhere('description', 'like', "%{$searchTerm}%")
-                    ->orWhereHas('fromAccount', function ($q) use ($searchTerm) {
+                    ->orWhereHas('sourceAccount', function ($q) use ($searchTerm) {
                         $q->where('account_number', 'like', "%{$searchTerm}%");
                     })
-                    ->orWhereHas('toAccount', function ($q) use ($searchTerm) {
+                    ->orWhereHas('targetAccount', function ($q) use ($searchTerm) {
                         $q->where('account_number', 'like', "%{$searchTerm}%");
                     });
             });
@@ -211,16 +205,16 @@ class TransactionController extends Controller
             $query->where('direction', $request->direction);
         }
 
-////         Only show user's transactions if not admin
-//        if (!$user->hasRole('admin')) {
-//            $query->where('initiated_by', $user->id);
-//        }
+        ////         Only show user's transactions if not admin
+        //        if (!$user->hasRole('admin')) {
+        //            $query->where('initiated_by', $user->id);
+        //        }
 
         // Get paginated results with relationships
         $perPage = $request->input('per_page', 15);
         $transactions = $query->with([
-            'fromAccount:id,account_number,currency',
-            'toAccount:id,account_number,currency'
+            'sourceAccount:id,account_number,currency',
+            'targetAccount:id,account_number,currency'
         ])
             ->latest()
             ->paginate($perPage);
@@ -229,28 +223,32 @@ class TransactionController extends Controller
         $formattedTransactions = $transactions->map(function ($transaction) {
             return [
                 'id' => $transaction->id,
-                'type' => $transaction->type,
-                'type_label' => $transaction->type->getLabel(),
-                'status' => $transaction->status,
-                'status_label' => $transaction->status->getLabel(),
-                'direction' => $transaction->direction,
-                'direction_label' => $transaction->direction->getLabel(),
-                'amount' => (float) $transaction->amount,
-                'fee' => (float) $transaction->fee,
-                'net_amount' => (float) ($transaction->amount - $transaction->fee),
-                'currency' => $transaction->currency,
+                'reference_number' => $transaction->reference_number,
                 'description' => $transaction->description,
+                // 'type' => $transaction->type,
+                'type_label' => TransactionType::tryFrom($transaction->type)?->getLabel() ?? ucfirst($transaction->type),
+                // 'status' => $transaction->status,
+                'status_label' => TransactionStatus::tryFrom($transaction->status)?->getLabel() ?? ucfirst($transaction->status),
+                // 'direction' => $transaction->direction,
+                'direction_label' => Direction::tryFrom($transaction->direction)?->getLabel() ?? ucfirst($transaction->direction),
+                'amount' => (float) $transaction->amount,
+                'currency' => $transaction->currency,
+                'initiated_by'=>$transaction->full_name,
                 'created_at' => $transaction->created_at->format('Y-m-d H:i:s'),
                 'approved_at' => $transaction->approved_at ? $transaction->approved_at->format('Y-m-d H:i:s') : null,
-                'from_account' => $transaction->fromAccount ? [
-                    'id' => $transaction->fromAccount->id,
-                    'account_number' => $transaction->fromAccount->account_number,
-                    'currency' => $transaction->fromAccount->currency
+                'source_account' => $transaction->sourceAccount ? [
+                    'id' => $transaction->sourceAccount->id,
+                    'account_number' => $transaction->sourceAccount->account_number,
+                    'currency' => $transaction->sourceAccount->currency,
+                    'account_type'=>$transaction->sourceAccount->accountType,
+
                 ] : null,
-                'to_account' => $transaction->toAccount ? [
-                    'id' => $transaction->toAccount->id,
-                    'account_number' => $transaction->toAccount->account_number,
-                    'currency' => $transaction->toAccount->currency
+                'target_account' => $transaction->targetAccount ? [
+                    'id' => $transaction->targetAccount->id,
+                    'account_number' => $transaction->targetAccount->account_number,
+                    'currency' => $transaction->targetAccount->currency,
+                    'account_type'=>$transaction->sourceAccount->accountType,
+
                 ] : null
             ];
         });
@@ -333,13 +331,11 @@ class TransactionController extends Controller
                 'data' => new TransactionResource($reversedTransaction),
                 'message' => 'Transaction reversed successfully'
             ]);
-
         } catch (TransactionException $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
             ], 422);
-
         } catch (\Exception $e) {
             Log::error('TransactionController@reverse error', [
                 'user_id' => $user->id,
@@ -377,13 +373,11 @@ class TransactionController extends Controller
                 'success' => $result,
                 'message' => $result ? 'Transaction cancelled successfully' : 'Failed to cancel transaction'
             ]);
-
         } catch (TransactionException $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
             ], 422);
-
         } catch (\Exception $e) {
             Log::error('TransactionController@cancel error', [
                 'user_id' => $user->id,
@@ -430,7 +424,6 @@ class TransactionController extends Controller
                     'total' => $transactions->total()
                 ]
             ]);
-
         } catch (\Exception $e) {
             Log::error('TransactionController@accountHistory error', [
                 'user_id' => $user->id,
@@ -467,7 +460,6 @@ class TransactionController extends Controller
                 'success' => true,
                 'data' => $summary
             ]);
-
         } catch (\Exception $e) {
             Log::error('TransactionController@summary error', [
                 'user_id' => $user->id,
@@ -518,7 +510,6 @@ class TransactionController extends Controller
                     'breakdown' => $breakdown
                 ]
             ]);
-
         } catch (\Exception $e) {
             Log::error('TransactionController@calculateFee error', [
                 'error' => $e->getMessage()
@@ -549,12 +540,12 @@ class TransactionController extends Controller
         // Check if user has access to the accounts involved
         $accountIds = [];
 
-        if ($transaction->from_account_id) {
-            $accountIds[] = $transaction->from_account_id;
+        if ($transaction->source_account_id) {
+            $accountIds[] = $transaction->source_account_id;
         }
 
-        if ($transaction->to_account_id) {
-            $accountIds[] = $transaction->to_account_id;
+        if ($transaction->target_account_id) {
+            $accountIds[] = $transaction->target_account_id;
         }
 
         return !empty($accountIds) && $user->accounts()->whereIn('id', $accountIds)->exists();

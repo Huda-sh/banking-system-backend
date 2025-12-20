@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Enums\TransactionType;
 use App\Enums\TransactionStatus;
@@ -12,98 +11,54 @@ use App\Models\Concerns\HasTransactionHistory;
 use App\Models\Concerns\HasApprovalWorkflow;
 use App\Exceptions\InvalidTransactionException;
 use Carbon\Carbon;
+use App\Models\Deposit;
+use App\Models\WithDrawal;
+use App\Models\Transfer;
+use App\Models\TransactionAuditLog;
+use App\Models\User;
 
 class Transaction extends Model
 {
-    use SoftDeletes, HasFactory, HasTransactionHistory, HasApprovalWorkflow;
+    use HasFactory, HasTransactionHistory, HasApprovalWorkflow;
 
     protected $fillable = [
-        'from_account_id', 'to_account_id', 'amount', 'currency',
-        'type', 'status', 'direction', 'fee', 'initiated_by', 'processed_by',
-        'approved_by', 'approved_at', 'description', 'ip_address', 'metadata'
-    ];
-
-    protected $casts = [
-        'amount' => 'decimal:2',
-        'fee' => 'decimal:2',
-        'type' => TransactionType::class,
-        'status' => TransactionStatus::class,
-        'direction' => Direction::class,
-        'approved_at' => 'datetime',
-        'metadata' => 'array'
+        'reference_number',
+        'description',
+        'source_account_id',
+        'target_account_id',
+        'amount',
+        'currency',
+        'type',
+        'status',
+        'direction',
+        'initiated_by',
+        'processed_by',
     ];
 
     protected $dates = ['approved_at'];
 
-    protected $appends = ['net_amount', 'total_amount'];
 
-    // Validation constants
-    const MAX_AMOUNT = 99999999.99;
-    const MIN_AMOUNT = 0.01;
-
-    /**
-     * Boot the model.
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(function ($transaction) {
-            $transaction->validateTransaction();
-        });
-
-        static::created(function ($transaction) {
-            $transaction->logAudit('created');
-        });
-
-        static::updated(function ($transaction) {
-            $transaction->logAudit('updated');
-        });
-    }
-
-    /**
-     * Validate transaction data before saving.
-     */
-    public function validateTransaction(): void
-    {
-        // Validate amount
-        if ($this->amount < self::MIN_AMOUNT || $this->amount > self::MAX_AMOUNT) {
-            throw new InvalidTransactionException(
-                "Transaction amount must be between " . self::MIN_AMOUNT . " and " . self::MAX_AMOUNT
-            );
-        }
-
-        // Validate currency format
-        if (!preg_match('/^[A-Z]{3}$/', $this->currency)) {
-            throw new InvalidTransactionException("Invalid currency format. Must be 3 uppercase letters.");
-        }
-
-        // Validate account relationships
-        if ($this->type !== TransactionType::DEPOSIT && !$this->from_account_id) {
-            throw new InvalidTransactionException("From account is required for non-deposit transactions");
-        }
-
-        if (!$this->to_account_id) {
-            throw new InvalidTransactionException("To account is required");
-        }
-    }
 
     /**
      * Relationships
      */
-    public function fromAccount()
+    public function sourceAccount()
     {
-        return $this->belongsTo(Account::class, 'from_account_id');
+        return $this->belongsTo(Account::class, 'source_account_id');
     }
 
-    public function toAccount()
+    public function targetAccount()
     {
-        return $this->belongsTo(Account::class, 'to_account_id');
+        return $this->belongsTo(Account::class, 'target_account_id');
     }
 
     public function initiatedBy()
     {
         return $this->belongsTo(User::class, 'initiated_by');
+    }
+
+    public function full_name(){
+        return $this->belongsTo(User::class, 'initiated_by')->select('first_name', 'last_name');
     }
 
     public function processedBy()
@@ -121,14 +76,21 @@ class Transaction extends Model
         return $this->hasMany(TransactionApproval::class);
     }
 
-    public function auditLogs()
+
+
+    public function deposit()
     {
-        return $this->hasMany(TransactionAuditLog::class);
+        return $this->hasMany(Deposit::class);
     }
 
-    public function scheduledTransaction()
+    public function withdrawal()
     {
-        return $this->hasOne(ScheduledTransaction::class);
+        return $this->hasMany(WithDrawal::class);
+    }
+
+    public function transfer()
+    {
+        return $this->hasMany(Transfer::class);
     }
 
     /**
@@ -147,8 +109,8 @@ class Transaction extends Model
     public function scopeByAccount($query, $accountId)
     {
         return $query->where(function ($q) use ($accountId) {
-            $q->where('from_account_id', $accountId)
-                ->orWhere('to_account_id', $accountId);
+            $q->where('source_account_id', $accountId)
+                ->orWhere('target_account_id', $accountId);
         });
     }
 
@@ -167,41 +129,6 @@ class Transaction extends Model
         return $query->where('status', $status);
     }
 
-    /**
-     * Accessors
-     */
-    public function getNetAmountAttribute(): float
-    {
-        return $this->amount - $this->fee;
-    }
-
-    public function getTotalAmountAttribute(): float
-    {
-        return $this->amount + $this->fee;
-    }
-
-    public function getFormattedAmountAttribute(): string
-    {
-        return number_format($this->amount, 2) . ' ' . $this->currency;
-    }
-
-    public function getFormattedFeeAttribute(): string
-    {
-        return number_format($this->fee, 2) . ' ' . $this->currency;
-    }
-
-    public function getIsCompletedAttribute(): bool
-    {
-        return $this->status === TransactionStatus::COMPLETED;
-    }
-
-    public function getRequiresApprovalAttribute(): bool
-    {
-        return in_array($this->status, [
-            TransactionStatus::PENDING_APPROVAL,
-            TransactionStatus::PENDING
-        ]);
-    }
 
     /**
      * Business logic methods
@@ -221,24 +148,6 @@ class Transaction extends Model
         return $this->type === TransactionType::TRANSFER;
     }
 
-    public function isScheduled(): bool
-    {
-        return $this->type === TransactionType::SCHEDULED || $this->scheduledTransaction()->exists();
-    }
-
-    public function canBeCancelled(): bool
-    {
-        return in_array($this->status, [
-            TransactionStatus::PENDING,
-            TransactionStatus::PENDING_APPROVAL
-        ]);
-    }
-
-    public function canBeReversed(): bool
-    {
-        return $this->status === TransactionStatus::COMPLETED && !$this->isScheduled();
-    }
-
     public function getTransactionDetails(): array
     {
         return [
@@ -250,8 +159,8 @@ class Transaction extends Model
             'fee' => $this->fee,
             'net_amount' => $this->net_amount,
             'currency' => $this->currency,
-            'from_account' => $this->fromAccount ? $this->fromAccount->account_number : null,
-            'to_account' => $this->toAccount ? $this->toAccount->account_number : null,
+            'source_account' => $this->sourceAccount ? $this->sourceAccount->account_number : null,
+            'target_account' => $this->targetAccount ? $this->targetAccount->account_number : null,
             'initiated_by' => $this->initiatedBy ? $this->initiatedBy->full_name : null,
             'approved_at' => $this->approved_at ? $this->approved_at->format('Y-m-d H:i:s') : null,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
