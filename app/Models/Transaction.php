@@ -18,24 +18,25 @@ class Transaction extends Model
     use SoftDeletes, HasFactory, HasTransactionHistory, HasApprovalWorkflow;
 
     protected $fillable = [
-        'from_account_id', 'to_account_id', 'amount', 'currency',
-        'type', 'status', 'direction', 'fee', 'initiated_by', 'processed_by',
-        'approved_by', 'approved_at', 'description', 'ip_address', 'metadata'
+        'reference_number',
+        'description',
+        'source_account_id',
+        'target_account_id',
+        'amount',
+        'currency',
+        'type',
+        'status',
+        'direction',
+        'initiated_by',
+        'processed_by',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'fee' => 'decimal:2',
         'type' => TransactionType::class,
         'status' => TransactionStatus::class,
         'direction' => Direction::class,
-        'approved_at' => 'datetime',
-        'metadata' => 'array'
     ];
-
-    protected $dates = ['approved_at'];
-
-    protected $appends = ['net_amount', 'total_amount'];
 
     // Validation constants
     const MAX_AMOUNT = 99999999.99;
@@ -289,7 +290,7 @@ class Transaction extends Model
      */
     public function getTypeLabelAttribute(): string
     {
-        return match($this->type) {
+        return match ($this->type) {
             'deposit' => 'Deposit',
             'withdrawal' => 'Withdrawal',
             'transfer' => 'Transfer',
@@ -306,7 +307,7 @@ class Transaction extends Model
      */
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'pending' => 'Pending',
             'pending_approval' => 'Pending Approval',
             'approved' => 'Approved',

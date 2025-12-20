@@ -11,20 +11,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('transactions', function (Blueprint $table) {
+        Schema::create('recurring_transactions', function (Blueprint $table) {
             $table->id();
-            $table->string('reference_number')->unique();
+            $table->string('name');
             $table->string('description')->nullable();
-            $table->foreignId('source_account_id')->constrained('accounts')->nullable();
-            $table->foreignId('target_account_id')->constrained('accounts')->nullable();
+            $table->foreignId('source_account_id')->constrained('accounts');
+            $table->foreignId('target_account_id')->constrained('accounts');
             $table->decimal('amount', 30, 2);
             $table->string('currency', 3);
+            $table->string('frequency'); // daily, weekly, monthly, yearly
             $table->string('type'); // transfer, deposit, withdrawal.
-            $table->string('status'); // pending_approval, approval_not_required, completed, rejected
-            $table->string('direction'); // debit, credit
+            $table->date('start_date');
+            $table->date('end_date')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->foreignId('initiated_by')->constrained('users');
-            $table->foreignId('processed_by')->nullable()->constrained('users');
+            $table->integer('current_execution')->default(0);
             $table->timestamps();
+            
         });
     }
 
@@ -33,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transactions');
+        Schema::dropIfExists('recurring_transactions');
     }
 };

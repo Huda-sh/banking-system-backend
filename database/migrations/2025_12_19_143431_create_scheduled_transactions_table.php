@@ -13,12 +13,15 @@ return new class extends Migration
     {
         Schema::create('scheduled_transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('transaction_id')->constrained('transactions');
-            $table->enum('frequency', ['daily', 'weekly', 'monthly', 'yearly']);
-            $table->dateTime('next_execution');
-            $table->integer('execution_count')->default(0);
-            $table->integer('max_executions')->nullable();
+            $table->string('source_account_id')->constrained('accounts');
+            $table->string('target_account_id')->constrained('accounts');
+            $table->decimal('amount', 30, 2);
+            $table->string('currency', 3);
+            $table->string('type'); // transfer, deposit, withdrawal.
+            $table->date('scheduled_date');
+            $table->string('status'); // pending, failed, completed
             $table->boolean('is_active')->default(true);
+            $table->foreignId('initiated_by')->constrained('users');
             $table->timestamps();
         });
     }

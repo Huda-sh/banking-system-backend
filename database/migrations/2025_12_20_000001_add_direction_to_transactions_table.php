@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('transactions', function (Blueprint $table) {
             // add direction column; default to outgoing for existing records
-            $table->enum('direction', ['incoming', 'outgoing'])->default('outgoing')->after('type');
+            // $table->enum('direction', ['incoming', 'outgoing'])->default('outgoing')->after('type');
         });
     }
 
