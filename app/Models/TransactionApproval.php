@@ -12,7 +12,7 @@ use App\Models\Concerns\HasApprovalWorkflow;
 
 class TransactionApproval extends Model
 {
-    use SoftDeletes, HasFactory, HasApprovalWorkflow;
+    use HasFactory, HasApprovalWorkflow;
 
     protected $fillable = [
         'transaction_id', 'approver_id', 'level', 'status', 'notes'

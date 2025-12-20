@@ -3,13 +3,11 @@
 namespace App\Enums;
 
 enum ApprovalStatus: string
-{
+{// approval_status AS ENUM ('pending', 'approved', 'rejected');
     case PENDING = 'pending';
     case APPROVED = 'approved';
     case REJECTED = 'rejected';
-    case CANCELLED = 'cancelled';
-    case ESCALATED = 'escalated';
-    case DELEGATED = 'delegated';
+
 
     /**
      * Get the displayable label for the approval status.
@@ -20,9 +18,7 @@ enum ApprovalStatus: string
             self::PENDING => 'Pending',
             self::APPROVED => 'Approved',
             self::REJECTED => 'Rejected',
-            self::CANCELLED => 'Cancelled',
-            self::ESCALATED => 'Escalated',
-            self::DELEGATED => 'Delegated',
+
         };
     }
 
@@ -34,8 +30,7 @@ enum ApprovalStatus: string
         return match($this) {
             self::PENDING => 'warning',
             self::APPROVED => 'success',
-            self::REJECTED, self::CANCELLED => 'danger',
-            self::ESCALATED, self::DELEGATED => 'info',
+            self::REJECTED, => 'danger',
         };
     }
 

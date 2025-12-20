@@ -51,7 +51,6 @@ class Transaction extends Model
     {
         return $this->belongsTo(Account::class, 'target_account_id');
     }
-
     public function initiatedBy()
     {
         return $this->belongsTo(User::class, 'initiated_by');

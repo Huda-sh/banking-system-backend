@@ -10,10 +10,15 @@ use App\Http\Requests\Api\StoreTransactionRequest;
 use App\Http\Requests\Api\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
 use App\Http\Resources\TransactionCollection;
+use App\Services\Approval\LargeTransactionHandler;
+use App\Services\Approval\MediumTransactionHandler;
+use App\Services\Approval\SmallTransactionHandler;
+use App\Services\Approval\VeryLargeTransactionHandler;
 use App\Services\Transactions\TransactionService;
 use App\Services\Transactions\FeeCalculationService;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +27,7 @@ use Illuminate\Support\Facades\Log;
 use App\Exceptions\ApprovalException;
 use App\Exceptions\TransactionException;
 use Carbon\Carbon;
-
+use App\Models\Approval;
 class TransactionController extends Controller
 {
     public function __construct(
@@ -76,56 +81,166 @@ class TransactionController extends Controller
         }
     }
 
-    /**
-     * Store a newly created transaction.
-     */
-    public function store(StoreTransactionRequest $request): JsonResponse
+    //get transaction by id
+    public function getTransaction($id)
     {
-        $user = Auth::user();
-        $data = $request->validated();
+        $transaction = Transaction::with([
+            'initiatedBy',
+            'processedBy',
+            'sourceAccount',
+            'targetAccount',
+            'approvals'
+        ])->findOrFail($id);
 
-        try {
-            $transaction = $this->transactionService->process($data, $user);
+        // basicInfo
+        $basicInfo = [
+            'type' => $transaction->type,
+            'amount' => (float) $transaction->amount,
+            'currency' => $transaction->currency,
+            'direction' => $transaction->direction ?? 'debit', // أو حسب قاعدتك
+            'status' => $transaction->status,
+            'date' => $transaction->created_at->toISOString(),
+            'description' => $transaction->description,
+        ];
 
-            return response()->json([
-                'success' => true,
-                'data' => new TransactionResource($transaction),
-                'message' => 'Transaction processed successfully'
-            ], 201);
-        } catch (ApprovalException $e) {
-            $transaction = $e->getTransaction();
+        // accountDetails
+        $accountDetails = [
+            'sourceAccount' => $transaction->sourceAccount
+                ? $transaction->sourceAccount->id . ' (' . ($transaction->sourceAccount->type ?? 'Account') . ')'
+                : 'N/A',
+            'targetAccount' => $transaction->targetAccount
+                ? $transaction->targetAccount->id . ' (' . ($transaction->targetAccount->type ?? 'Account') . ')'
+                : 'N/A',
+         ];
 
-            return response()->json([
-                'success' => true,
-                'data' => new TransactionResource($transaction),
-                'requires_approval' => true,
-                'message' => 'Transaction created and pending approval',
-                'approval_details' => $transaction->getApprovalWorkflowDetails()
-            ], 202);
-        } catch (TransactionException $e) {
-            Log::warning('Transaction failed validation', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
+        // approvalWorkflow
+        $approval = $transaction->approvals->first();
+        $approvedByUser = $approval?->approvedBy;
+        $approvedBy = $approvedByUser
+            ? $approvedByUser->first_name . '_' . $approvedByUser->last_name
+            : null;
 
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'error_code' => $e->getCode()
-            ], 422);
-        } catch (\Exception $e) {
-            Log::error('TransactionController@store error', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to process transaction'
-            ], 500);
+        $workflowPath = $this->getWorkflowPath($transaction->amount);
+
+        $approvalWorkflow = [
+            'approvedBy' => $approvedBy,
+            'approvalDate' => $approval?->updated_at?->toISOString(),
+            'workflowPath' => $workflowPath,
+            'comments' => $approval?->comment ?? null,
+        ];
+
+        // auditTrail
+        $auditTrail = [
+            [
+                'timestamp' => $transaction->created_at->toISOString(),
+                'action' => 'CREATED',
+                'user' => $transaction->initiatedBy?->first_name ?? 'System',
+            ],
+            [
+                'timestamp' => $transaction->updated_at?->toISOString(),
+                'action' => strtoupper($transaction->status),
+                'user' => $approvedBy ?? 'System',
+            ],
+        ];
+
+        return response()->json([
+            'id' => $transaction->id,
+            'referenceNumber' => $transaction->reference_number,
+            'basicInfo' => $basicInfo,
+            'accountDetails' => $accountDetails,
+            'executionLogic' => [
+                 'feeStrategyUsed' => 'None',
+                'interestApplied' => 0.00,
+            ],
+            'approvalWorkflow' => $approvalWorkflow,
+            'auditTrail' => $auditTrail,
+        ]);
+    }
+
+
+    private function getWorkflowPath($amount)
+    {
+        if ($amount <= 1000) {
+            return 'SmallTransactionHandler (Auto-approved)';
+        } elseif ($amount <= 10000) {
+            return 'Small → MediumTransactionHandler (Approved)';
+        } elseif ($amount <= 50000) {
+            return 'Small → Medium → LargeTransactionHandler (Approved)';
+        } else {
+            return 'Small → Medium → Large → VeryLargeTransactionHandler (Approved)';
         }
     }
 
+
+    //update status of transaction
+    /**
+     * Store a newly created transaction.
+     */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'type' => 'required|in:transfer',
+            'sourceAccountId' => 'required|exists:accounts,id',
+            'targetAccountId' => 'required|exists:accounts,id',
+            'amount' => 'required|numeric|min:0.01',
+            'currency' => 'required|string|size:3',
+            'description' => 'nullable|string',
+            'reference_number'=>'required|string|max:50|unique:transactions,reference_number',
+            'direction'=>'required|in:debit,credit',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        return DB::transaction(function () use ($data, $user) {
+            $transaction = Transaction::create([
+                'type' => $data['type'],
+                'reference_number'=>$data['reference_number'],
+                'source_account_id' => $data['sourceAccountId'],
+                'target_account_id' => $data['targetAccountId'],
+                'amount' => $data['amount'],
+                'currency' => $data['currency'],
+                'description' => $data['description'] ?? '',
+                'initiated_by' => $user->id,
+                'status' => 'pending',
+                'direction'=>$data['direction']
+            ]);
+
+            // بناء السلسلة
+            $small = new SmallTransactionHandler();
+            $medium = new MediumTransactionHandler();
+            $large = new LargeTransactionHandler();
+            $veryLarge = new VeryLargeTransactionHandler();
+
+            $small->setNext($medium)
+                ->setNext($large)
+                ->setNext($veryLarge);
+
+            $result = $small->handle($transaction, $user);
+
+            if ($result['approved']) {
+                $transaction->update([
+                    'status' => 'approved',
+                    'approved_at' => now(),
+                ]);
+
+                 // $this->executeTransfer($transaction);
+
+                return response()->json([
+                    'message' => $result['message'],
+                    'transaction' => $transaction->fresh(),
+                ], 201);
+            } else {
+                return response()->json([
+                    'message' => $result['message'],
+                    'requires_approval' => true,
+                    'allowed_roles' => $result['allowed_roles'] ?? [],
+                    'transaction_id' => $transaction->id,
+                ], 403);
+            }
+        });
+    }
     /**
      * Display the specified transaction.
      */

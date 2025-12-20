@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\SimpleTransactionController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,7 +45,11 @@ Route::controller(AccountGroupController::class)
         Route::patch('/{accountId}/state', 'updateState')->name('state.update');
     });
 Route::controller(\App\Http\Controllers\Api\TransactionController::class)
-    ->middleware(['auth:sanctum', 'role:Admin,Teller,Manager'])
+    ->middleware(['auth:sanctum'])
     ->group(function () {
         Route::get('transactions', 'show');
+        Route::post('/transactions','store');
+        Route::patch('transactions/{id}/status', 'updateStatus');
+        Route::get('transactions/{id}', 'getTransaction');
+
     });
