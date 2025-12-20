@@ -4,8 +4,8 @@ namespace App\Enums;
 
 enum TransactionStatus: string
 {
-    case PENDING_APPROVAL = 'pending_approval';
-    case APPROVAL_NOT_REQUIRED = 'approval_not_required';
+    case PENDING = 'pending';
+    case APPROVED = 'approved';
     case COMPLETED = 'completed';
     case REJECTED = 'rejected';
 
@@ -15,8 +15,8 @@ enum TransactionStatus: string
     public function getLabel(): string
     {
         return match($this) {
-            self::PENDING_APPROVAL => 'Pending Approval',
-            self::APPROVAL_NOT_REQUIRED => 'Approval Not Required',
+            self::PENDING => 'Pending',
+            self::APPROVED => 'Approved',
             self::COMPLETED => 'Completed',
             self::REJECTED => 'Rejected',
         };
@@ -28,8 +28,8 @@ enum TransactionStatus: string
     public function getColor(): string
     {
         return match($this) {
-            self::PENDING_APPROVAL => 'warning',
-            self::APPROVAL_NOT_REQUIRED, self::COMPLETED => 'success',
+            self::PENDING => 'warning',
+            self::APPROVED, self::COMPLETED => 'success',
             self::REJECTED => 'danger',
         };
     }
@@ -47,6 +47,6 @@ enum TransactionStatus: string
      */
     public function requiresApproval(): bool
     {
-        return in_array($this, [self::PENDING_APPROVAL]);
+        return in_array($this, [self::PENDING]);
     }
 }

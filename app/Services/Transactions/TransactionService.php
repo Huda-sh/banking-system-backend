@@ -35,7 +35,7 @@ class TransactionService
 
             // Check if approval is required
             if ($this->requiresApproval($transaction, $user)) {
-                $transaction->update(['status' => TransactionStatus::PENDING_APPROVAL]);
+                $transaction->update(['status' => TransactionStatus::PENDING]);
                 DB::commit();
                 throw new ApprovalException($transaction);
             }
@@ -213,7 +213,7 @@ class TransactionService
             $reversalTransaction = Transaction::create($reversalData);
 
             // Update original transaction status
-            $transaction->update(['status' => TransactionStatus::APPROVAL_NOT_REQUIRED]);
+            $transaction->update(['status' => TransactionStatus::APPROVED]);
 
             // Execute the reversal
             $this->executeTransaction($reversalTransaction);
@@ -402,7 +402,7 @@ class TransactionService
      */
     private function canCancelTransaction(Transaction $transaction, User $user): bool
     {
-        return in_array($transaction->status, [TransactionStatus::PENDING, TransactionStatus::PENDING_APPROVAL]);
+        return in_array($transaction->status, [TransactionStatus::PENDING, TransactionStatus::PENDING]);
     }
 
     /**

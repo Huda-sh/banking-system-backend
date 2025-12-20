@@ -262,7 +262,7 @@ class ApprovalWorkflowService
     private function canApprove(TransactionApproval $approval, Transaction $transaction): bool
     {
         // Check if transaction is still in approval state
-        if ($transaction->status !== TransactionStatus::PENDING_APPROVAL) {
+        if ($transaction->status !== TransactionStatus::PENDING) {
             return false;
         }
 

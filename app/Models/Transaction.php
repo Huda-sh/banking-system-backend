@@ -103,7 +103,7 @@ class Transaction extends Model
 
     public function scopePendingApproval($query)
     {
-        return $query->where('status', TransactionStatus::PENDING_APPROVAL);
+        return $query->where('status', TransactionStatus::PENDING);
     }
 
     public function scopeByAccount($query, $accountId)
@@ -217,12 +217,10 @@ class Transaction extends Model
     {
         return match($this->status) {
             'pending' => 'Pending',
-            'pending_approval' => 'Pending Approval',
             'approved' => 'Approved',
             'completed' => 'Completed',
-            'failed' => 'Failed',
-            'cancelled' => 'Cancelled',
-            'reversed' => 'Reversed',
+            'rejected' => 'Rejected',
+
             default => ucfirst($this->status)
         };
     }
