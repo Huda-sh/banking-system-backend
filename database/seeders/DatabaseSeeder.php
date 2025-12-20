@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
 
         // Transactions
         $this->call([
-            TransactionsSeeder::class,
+            TransactionSeeder::class,
             TransactionApprovalsSeeder::class,
             ScheduledTransactionsSeeder::class,
         ]);
