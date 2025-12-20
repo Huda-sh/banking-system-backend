@@ -174,6 +174,77 @@ class TransactionController extends Controller
 
 
     //update status of transaction
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+            'comments' => 'nullable|string|max:500',
+        ]);
+
+        $user = auth()->user();
+        $transaction = Transaction::findOrFail($id);
+
+         if ($transaction->status !== 'pending') {
+            return response()->json(['error' => 'Only pending transactions can be updated.'], 400);
+        }
+
+
+        $allowed = $user->hasRole('Manager') || $user->hasRole('Admin');
+        if (!$allowed) {
+            return response()->json(['error' => 'Unauthorized.'], 403);
+        }
+
+        $amount = $transaction->amount;
+        $canApprove = false;
+
+        if ($amount > 10000) {
+
+            $canApprove = $user->hasRole('Admin');
+        } else {
+             $canApprove = $user->hasRole('Manager') || $user->hasRole('Admin');
+        }
+
+        if (!$canApprove) {
+            return response()->json(['error' => 'You are not authorized to approve this transaction.'], 403);
+        }
+
+
+        $newStatus = $request->status;
+        $dbStatus = $newStatus === 'approved' ? 1 : -1;
+
+        \DB::transaction(function () use ($newStatus, $transaction, $user, $dbStatus, $request) {
+
+            $transaction->update([
+                'status' => $newStatus,
+                'processed_by' => $user->id,
+                'approved_at' => $newStatus === 'approved' ? now() : null,
+            ]);
+
+
+            $approval = $transaction->approvals()->first();
+            if ($approval) {
+                $approval->update([
+                    'approved_by' => $user->id,
+                    'status' => $newStatus,
+                    'comment' => $request->comments,
+                ]);
+            } else {
+                Approval::updateOrcreate([
+                    'entity_type' => 'transaction',
+                    'entity_id' => $transaction->id,
+                    'requested_by' => $transaction->initiated_by,
+                    'approved_by' => $user->id,
+                    'status' => $newStatus,
+                    'comment' => $request->comments,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Transaction status updated successfully.',
+            'transaction' => $transaction->fresh(),
+        ]);
+    }
     /**
      * Store a newly created transaction.
      */
