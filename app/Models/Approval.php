@@ -20,7 +20,7 @@ class Approval extends Model
         return $this->belongsTo(User::class, 'requested_by');
     }
 
-    public function approvedBy()
+    public function approvedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
     }

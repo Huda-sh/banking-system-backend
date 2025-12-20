@@ -89,7 +89,8 @@ class TransactionController extends Controller
             'processedBy',
             'sourceAccount',
             'targetAccount',
-            'approvals'
+            'approvals',
+            'approval.approvedBy',
         ])->findOrFail($id);
 
         // basicInfo
@@ -97,7 +98,7 @@ class TransactionController extends Controller
             'type' => $transaction->type,
             'amount' => (float) $transaction->amount,
             'currency' => $transaction->currency,
-            'direction' => $transaction->direction ?? 'debit', // أو حسب قاعدتك
+            'direction' => $transaction->direction ?? 'debit',
             'status' => $transaction->status,
             'date' => $transaction->created_at->toISOString(),
             'description' => $transaction->description,
@@ -114,7 +115,7 @@ class TransactionController extends Controller
          ];
 
         // approvalWorkflow
-        $approval = $transaction->approvals->first();
+        $approval = $transaction->approval->first();
         $approvedByUser = $approval?->approvedBy;
         $approvedBy = $approvedByUser
             ? $approvedByUser->first_name . '_' . $approvedByUser->last_name
@@ -124,7 +125,7 @@ class TransactionController extends Controller
         $workflowPath = $this->getWorkflowPath($transaction->amount);
 
         $approvalWorkflow = [
-            'approvedBy' => $approvedBy,
+            'approvedBy' =>$approvedBy,
             'approvalDate' => $approval?->updated_at?->toISOString(),
             'workflowPath' => $workflowPath,
             'comments' => $approval?->comment ?? null,

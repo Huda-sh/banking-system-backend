@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('approvals', function (Blueprint $table) {
             $table->id();
-            $table->string('entity_type'); // مثلاً: 'transaction'
+            $table->string('entity_type');
             $table->unsignedBigInteger('entity_id');
             $table->foreignId('requested_by')->constrained('users')->onDelete('cascade');
             $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');

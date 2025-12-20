@@ -75,7 +75,10 @@ class Transaction extends Model
         return $this->hasMany(TransactionApproval::class);
     }
 
-
+    public function approval()
+    {
+        return $this->hasMany(Approval::class, 'entity_id');
+    }
 
     public function deposit()
     {
