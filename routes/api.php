@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountGroupController;
-use App\Http\Controllers\Api\SimpleTransactionController;
+use App\Http\Controllers\SimpleTransactionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -43,4 +43,4 @@ Route::controller(AccountGroupController::class)
         // State Management
         Route::patch('/{accountId}/state', 'updateState')->name('state.update');
     });
-Route::get('transactions', [SimpleTransactionController::class, 'index']);
+Route::get('transactions', [\App\Http\Controllers\Api\TransactionController::class, 'show']);

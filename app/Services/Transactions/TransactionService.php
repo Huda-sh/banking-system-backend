@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Transactions;
 
 use App\Models\Transaction;
 use App\Models\Account;
@@ -16,6 +16,8 @@ use App\Exceptions\TransactionException;
 use App\Patterns\ChainOfResponsibility\Interfaces\TransactionHandler;
 use App\Patterns\ChainOfResponsibility\HandlerChainFactory;
 use App\Patterns\Observer\TransactionSubject;
+use App\Services\Transactions\ApprovalWorkflowService;
+use App\Services\Transactions\FeeCalculationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;

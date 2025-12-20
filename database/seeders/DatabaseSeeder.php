@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
         // Accounts
         $this->call([
             AccountTypeSeeder::class,
+            AccountSeeder::class,
         ]);
 
         // Transactions

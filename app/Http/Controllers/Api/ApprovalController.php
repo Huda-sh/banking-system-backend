@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ApprovalResource;
 use App\Http\Resources\ApprovalCollection;
-use App\Services\ApprovalWorkflowService;
+use App\Services\Transactions\ApprovalWorkflowService;
 use App\Models\Transaction;
 use App\Models\TransactionApproval;
 use App\Models\User;

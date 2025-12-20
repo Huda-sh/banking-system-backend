@@ -2,19 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\Direction;
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreTransactionRequest;
 use App\Http\Requests\Api\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
 use App\Http\Resources\TransactionCollection;
-use App\Services\TransactionService;
-use App\Services\FeeCalculationService;
+use App\Services\Transactions\TransactionService;
+use App\Services\Transactions\FeeCalculationService;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use App\Exceptions\ApprovalRequiredException;
+use App\Exceptions\ApprovalException;
 use App\Exceptions\TransactionException;
 use Carbon\Carbon;
 
@@ -24,11 +29,8 @@ class TransactionController extends Controller
         private TransactionService $transactionService,
         private FeeCalculationService $feeCalculationService
     ) {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:process-transactions')->only(['store', 'transfer', 'withdraw', 'deposit']);
-        $this->middleware('permission:view-transactions')->only(['index', 'show', 'history']);
-        $this->middleware('permission:reverse-transactions')->only(['reverse']);
-        $this->middleware('permission:cancel-transactions')->only(['cancel']);
+
+
     }
 
     /**
@@ -94,7 +96,7 @@ class TransactionController extends Controller
                 'message' => 'Transaction processed successfully'
             ], 201);
 
-        } catch (ApprovalRequiredException $e) {
+        } catch (ApprovalException $e) {
             $transaction = $e->getTransaction();
 
             return response()->json([
@@ -133,20 +135,150 @@ class TransactionController extends Controller
     /**
      * Display the specified transaction.
      */
-    public function show(Transaction $transaction): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $user = Auth::user();
+//        $user = Auth::user();
 
-        if (!$this->canAccessTransaction($user, $transaction)) {
+        // Validate query parameters
+        $validator = Validator::make($request->all(), [
+            'from_date' => 'nullable|date_format:Y-m-d',
+            'to_date' => 'nullable|date_format:Y-m-d|after_or_equal:from_date',
+            'direction'=>'nullable|in:' . implode(',', array_column(Direction::cases(), 'value')),
+            'trans_type' => 'nullable|in:' . implode(',', array_column(TransactionType::cases(), 'value')),
+            'status' => 'nullable|in:' . implode(',', array_column(TransactionStatus::cases(), 'value')),
+            'account_id' => 'nullable|exists:accounts,id',
+            'search' => 'nullable|string|max:255',
+            'per_page' => 'nullable|integer|min:1|max:100'
+        ]);
+
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to access this transaction'
-            ], 403);
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        $query = Transaction::query();
+
+        // Apply account filter first (most restrictive)
+        if ($request->filled('account_id')) {
+            $accountId = $request->account_id;
+            $query->where(function ($q) use ($accountId) {
+                $q->where('from_account_id', $accountId)
+                    ->orWhere('to_account_id', $accountId);
+            });
+        }
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('id', 'like', "%{$searchTerm}%")
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('fromAccount', function ($q) use ($searchTerm) {
+                        $q->where('account_number', 'like', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('toAccount', function ($q) use ($searchTerm) {
+                        $q->where('account_number', 'like', "%{$searchTerm}%");
+                    });
+            });
+        }
+
+        // Apply date filters
+        if ($request->filled('from_date')) {
+            $fromDate = Carbon::parse($request->from_date)->startOfDay();
+            $query->where('created_at', '>=', $fromDate);
+        }
+
+        if ($request->filled('to_date')) {
+            $toDate = Carbon::parse($request->to_date)->endOfDay();
+            $query->where('created_at', '<=', $toDate);
+        }
+
+        // Apply type filter
+        if ($request->filled('trans_type')) {
+            $query->where('type', $request->trans_type);
+        }
+
+        // Apply status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Apply direction filter
+        if ($request->filled('direction')) {
+            $query->where('direction', $request->direction);
+        }
+
+////         Only show user's transactions if not admin
+//        if (!$user->hasRole('admin')) {
+//            $query->where('initiated_by', $user->id);
+//        }
+
+        // Get paginated results with relationships
+        $perPage = $request->input('per_page', 15);
+        $transactions = $query->with([
+            'fromAccount:id,account_number,currency',
+            'toAccount:id,account_number,currency'
+        ])
+            ->latest()
+            ->paginate($perPage);
+
+        // Format response
+        $formattedTransactions = $transactions->map(function ($transaction) {
+            return [
+                'id' => $transaction->id,
+                'type' => $transaction->type,
+                'type_label' => $transaction->type->getLabel(),
+                'status' => $transaction->status,
+                'status_label' => $transaction->status->getLabel(),
+                'direction' => $transaction->direction,
+                'direction_label' => $transaction->direction->getLabel(),
+                'amount' => (float) $transaction->amount,
+                'fee' => (float) $transaction->fee,
+                'net_amount' => (float) ($transaction->amount - $transaction->fee),
+                'currency' => $transaction->currency,
+                'description' => $transaction->description,
+                'created_at' => $transaction->created_at->format('Y-m-d H:i:s'),
+                'approved_at' => $transaction->approved_at ? $transaction->approved_at->format('Y-m-d H:i:s') : null,
+                'from_account' => $transaction->fromAccount ? [
+                    'id' => $transaction->fromAccount->id,
+                    'account_number' => $transaction->fromAccount->account_number,
+                    'currency' => $transaction->fromAccount->currency
+                ] : null,
+                'to_account' => $transaction->toAccount ? [
+                    'id' => $transaction->toAccount->id,
+                    'account_number' => $transaction->toAccount->account_number,
+                    'currency' => $transaction->toAccount->currency
+                ] : null
+            ];
+        });
+
+        // Build filter summary
+        $appliedFilters = array_filter([
+            'from_date' => $request->from_date,
+            'to_date' => $request->to_date,
+            'direction' => $request->direction,
+            'trans_type' => $request->trans_type,
+            'status' => $request->status,
+            'account_id' => $request->account_id,
+            'search' => $request->search
+        ], function ($value) {
+            return $value !== null && $value !== '';
+        });
 
         return response()->json([
             'success' => true,
-            'data' => new TransactionResource($transaction)
+            'data' => $formattedTransactions,
+            'meta' => [
+                'current_page' => $transactions->currentPage(),
+                'last_page' => $transactions->lastPage(),
+                'per_page' => $transactions->perPage(),
+                'total' => $transactions->total(),
+                'applied_filters' => $appliedFilters,
+                'filter_count' => count($appliedFilters)
+            ]
         ]);
     }
 

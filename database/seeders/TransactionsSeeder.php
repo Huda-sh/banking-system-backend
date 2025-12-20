@@ -14,14 +14,19 @@ class TransactionsSeeder extends Seeder
 {
     public function run()
     {
-        $customer1 = User::where('email', 'customer1@example.com')->first();
-        $customer2 = User::where('email', 'customer2@example.com')->first();
-        $admin = User::where('email', 'admin@example.com')->first();
+        $customer1 = User::where('email', 'john.doe@example.com')->first();
+        $customer2 = User::where('email', 'jane.doe@example.com')->first();
+        $admin = User::where('email', 'jim.doe@example.com')->first();
 
-        $savingsAccount = Account::where('account_number', 'AC-0000000001')->first();
-        $checkingAccount = Account::where('account_number', 'AC-0000000002')->first();
-        $businessAccount = Account::where('account_number', 'AC-0000000003')->first();
-        $jointAccount = Account::where('account_number', 'AC-0000000004')->first();
+        $accounts = Account::all();
+        if ($accounts->count() < 4) {
+            $this->command->info('TransactionsSeeder: not enough accounts, skipping transaction creation.');
+            return;
+        }
+        $savingsAccount = $accounts[0];
+        $checkingAccount = $accounts[1];
+        $businessAccount = $accounts[2];
+        $jointAccount = $accounts[3];
 
         // Ensure required users and accounts exist before seeding transactions
         if (!$customer1 || !$customer2 || !$admin || !$savingsAccount || !$checkingAccount || !$businessAccount || !$jointAccount) {
@@ -43,7 +48,9 @@ class TransactionsSeeder extends Seeder
             'processed_by' => $customer1->id,
             'approved_by' => $admin->id,
             'approved_at' => now(),
-            'description' => 'Initial deposit'
+            'description' => 'Initial deposit',
+            'ip_address' => '127.0.0.1',
+            'metadata' => []
         ]);
 
         Transaction::create([
@@ -59,7 +66,9 @@ class TransactionsSeeder extends Seeder
             'processed_by' => $customer1->id,
             'approved_by' => $admin->id,
             'approved_at' => now(),
-            'description' => 'Monthly salary'
+            'description' => 'Monthly salary',
+            'ip_address' => '127.0.0.1',
+            'metadata' => []
         ]);
 
         // Create transfers
@@ -76,7 +85,9 @@ class TransactionsSeeder extends Seeder
             'processed_by' => $customer1->id,
             'approved_by' => $admin->id,
             'approved_at' => now(),
-            'description' => 'Savings transfer'
+            'description' => 'Savings transfer',
+            'ip_address' => '127.0.0.1',
+            'metadata' => []
         ]);
 
         Transaction::create([
@@ -92,25 +103,12 @@ class TransactionsSeeder extends Seeder
             'processed_by' => $customer1->id,
             'approved_by' => $admin->id,
             'approved_at' => now(),
-            'description' => 'Joint account funding'
+            'description' => 'Joint account funding',
+            'ip_address' => '127.0.0.1',
+            'metadata' => []
         ]);
 
-        // Create withdrawal
-        Transaction::create([
-            'from_account_id' => $checkingAccount->id,
-            'to_account_id' => null,
-            'amount' => 500.00,
-            'currency' => 'USD',
-            'type' => TransactionType::WITHDRAWAL,
-            'status' => TransactionStatus::COMPLETED,
-            'direction' => Direction::OUTGOING->value,
-            'fee' => 2.50,
-            'initiated_by' => $customer1->id,
-            'processed_by' => $customer1->id,
-            'approved_by' => $admin->id,
-            'approved_at' => now(),
-            'description' => 'ATM withdrawal'
-        ]);
+
 
         // Create large transfer requiring approval
         Transaction::create([
@@ -123,7 +121,12 @@ class TransactionsSeeder extends Seeder
             'direction' => Direction::OUTGOING->value,
             'fee' => 750.00,
             'initiated_by' => $customer2->id,
-            'description' => 'Large business transfer'
+            'processed_by' => null,
+            'approved_by' => null,
+            'approved_at' => null,
+            'description' => 'Large business transfer',
+            'ip_address' => '127.0.0.1',
+            'metadata' => []
         ]);
 
         // Create failed transaction
@@ -137,7 +140,11 @@ class TransactionsSeeder extends Seeder
             'direction' => Direction::OUTGOING->value,
             'fee' => 0.00,
             'initiated_by' => $customer1->id,
+            'processed_by' => null,
+            'approved_by' => null,
+            'approved_at' => null,
             'description' => 'Insufficient balance',
+            'ip_address' => '127.0.0.1',
             'metadata' => [
                 'error' => 'Insufficient balance',
                 'error_class' => 'InsufficientBalanceException'

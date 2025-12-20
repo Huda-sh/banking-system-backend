@@ -58,16 +58,14 @@ class UserSeeder extends Seeder
             ]
         ];
 
-        foreach ($users as $user) {
-            $roleNames = $user['roles'];
-            unset($user['roles']);
+        foreach ($users as $userData) {
+            $roleNames = $userData['roles'];
+            unset($userData['roles']);
             $user = User::firstOrCreate([
-                'email' => $user['email'],
-            ], $user);
-
+                'email' => $userData['email'],
+            ], $userData);
             $roleIds = Role::whereIn('name', $roleNames)->pluck('id')->toArray();
-            // Attach roles without creating duplicates
-            $user->roles()->syncWithoutDetaching($roleIds);
+            $user->roles()->sync($roleIds);
         }
     }
 }

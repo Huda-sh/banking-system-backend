@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('amount', 15, 2);
             $table->string('currency', 3);
             $table->enum('type', ['deposit', 'withdrawal', 'transfer', 'scheduled']);
-            $table->enum('status', ['pending', 'completed', 'failed', 'cancelled']);
+            $table->enum('status', ['pending', 'pending_approval', 'approved', 'processing', 'completed', 'failed', 'cancelled', 'reversed', 'on_hold', 'rejected', 'scheduled']);
             $table->decimal('fee', 15, 2)->default(0.00);
             $table->foreignId('initiated_by')->constrained('users');
             $table->foreignId('processed_by')->nullable()->constrained('users');
