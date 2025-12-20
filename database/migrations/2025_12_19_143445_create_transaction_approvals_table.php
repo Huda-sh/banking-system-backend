@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignId('approver_id')->constrained('users');
             $table->enum('level', ['teller', 'manager', 'admin']);
             $table->enum('status', ['pending', 'approved', 'rejected']);
-            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }
