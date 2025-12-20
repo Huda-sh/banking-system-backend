@@ -43,4 +43,8 @@ Route::controller(AccountGroupController::class)
         // State Management
         Route::patch('/{accountId}/state', 'updateState')->name('state.update');
     });
-Route::get('transactions', [\App\Http\Controllers\Api\TransactionController::class, 'show']);
+Route::controller(\App\Http\Controllers\Api\TransactionController::class)
+    ->middleware(['auth:sanctum', 'role:Admin,Teller,Manager'])
+    ->group(function () {
+        Route::get('transactions', 'show');
+    });
