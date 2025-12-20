@@ -4,17 +4,10 @@ namespace App\Enums;
 
 enum TransactionStatus: string
 {
-    case PENDING = 'pending';
     case PENDING_APPROVAL = 'pending_approval';
-    case APPROVED = 'approved';
-    case PROCESSING = 'processing';
+    case APPROVAL_NOT_REQUIRED = 'approval_not_required';
     case COMPLETED = 'completed';
-    case FAILED = 'failed';
-    case CANCELLED = 'cancelled';
-    case REVERSED = 'reversed';
-    case ON_HOLD = 'on_hold';
     case REJECTED = 'rejected';
-    case SCHEDULED = 'scheduled';
 
     /**
      * Get the displayable label for the transaction status.
@@ -22,15 +15,9 @@ enum TransactionStatus: string
     public function getLabel(): string
     {
         return match($this) {
-            self::PENDING => 'Pending',
             self::PENDING_APPROVAL => 'Pending Approval',
-            self::APPROVED => 'Approved',
-            self::PROCESSING => 'Processing',
+            self::APPROVAL_NOT_REQUIRED => 'Approval Not Required',
             self::COMPLETED => 'Completed',
-            self::FAILED => 'Failed',
-            self::CANCELLED => 'Cancelled',
-            self::REVERSED => 'Reversed',
-            self::ON_HOLD => 'On Hold',
             self::REJECTED => 'Rejected',
         };
     }
@@ -41,9 +28,9 @@ enum TransactionStatus: string
     public function getColor(): string
     {
         return match($this) {
-            self::PENDING, self::PENDING_APPROVAL, self::APPROVED, self::PROCESSING, self::ON_HOLD => 'warning',
-            self::COMPLETED => 'success',
-            self::FAILED, self::CANCELLED, self::REVERSED, self::REJECTED => 'danger',
+            self::PENDING_APPROVAL => 'warning',
+            self::APPROVAL_NOT_REQUIRED, self::COMPLETED => 'success',
+            self::REJECTED => 'danger',
         };
     }
 
@@ -52,7 +39,7 @@ enum TransactionStatus: string
      */
     public function isFinal(): bool
     {
-        return in_array($this, [self::COMPLETED, self::FAILED, self::CANCELLED, self::REVERSED]);
+        return in_array($this, [self::COMPLETED, self::REJECTED]);
     }
 
     /**
@@ -60,6 +47,6 @@ enum TransactionStatus: string
      */
     public function requiresApproval(): bool
     {
-        return in_array($this, [self::PENDING_APPROVAL, self::ON_HOLD]);
+        return in_array($this, [self::PENDING_APPROVAL]);
     }
 }

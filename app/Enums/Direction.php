@@ -4,14 +4,14 @@ namespace App\Enums;
 
 enum Direction: string
 {
-    case INCOMING = 'incoming';
-    case OUTGOING = 'outgoing';
+    case DEBIT = 'debit';
+    case CREDIT = 'credit';
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::INCOMING => 'Incoming',
-            self::OUTGOING => 'Outgoing',
+            self::DEBIT => 'Debit',
+            self::CREDIT => 'Credit',
         };
     }
 
