@@ -10,6 +10,9 @@ use App\Http\Requests\Api\StoreTransactionRequest;
 use App\Http\Requests\Api\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
 use App\Http\Resources\TransactionCollection;
+use App\Observables\TransactionApprovalSubject;
+use App\Observers\ReceiverEmailObserver;
+use App\Observers\SenderEmailObserver;
 use App\Services\Approval\LargeTransactionHandler;
 use App\Services\Approval\MediumTransactionHandler;
 use App\Services\Approval\SmallTransactionHandler;
@@ -115,7 +118,7 @@ class TransactionController extends Controller
          ];
 
         // approvalWorkflow
-        $approval = $transaction->approval->first();
+        $approval = $transaction->approval->last();
         $approvedByUser = $approval?->approvedBy;
         $approvedBy = $approvedByUser
             ? $approvedByUser->first_name . '_' . $approvedByUser->last_name
@@ -224,11 +227,18 @@ class TransactionController extends Controller
 
             $approval = $transaction->approvals()->first();
             if ($approval) {
+
                 $approval->update([
                     'approved_by' => $user->id,
                     'status' => $newStatus,
                     'comment' => $request->comments,
                 ]);
+
+                $subject = new TransactionApprovalSubject($transaction);
+                $subject->attach(new SenderEmailObserver());
+                $subject->attach(new ReceiverEmailObserver());
+                $subject->approveTransaction();
+
             } else {
                 Approval::updateOrcreate([
                     'entity_type' => 'transaction',
