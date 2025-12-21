@@ -21,13 +21,13 @@ class MediumTransactionHandler extends AbstractApprovalHandler
             return $this->passToNext($transaction, $user);
         }
 
-        if ($user->hasRole('Manager') || $user->hasRole('Admin')) {
-            return [
-                'approved' => true,
-                'message' => 'Approved by Manager/Admin.',
-                'requires_approval' => false,
-            ];
-        }
+//        if ($user->hasRole('Manager') || $user->hasRole('Admin')) {
+//            return [
+//                'approved' => true,
+//                'message' => 'Approved by Manager/Admin.',
+//                'requires_approval' => false,
+//            ];
+//        }
 
         DB::transaction(function () use ($transaction, $user) {
             Approval::create([

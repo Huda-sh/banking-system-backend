@@ -22,13 +22,13 @@ class LargeTransactionHandler extends AbstractApprovalHandler
             return $this->passToNext($transaction, $user);
         }
 
-        if ($user->hasRole('Admin')) {
-            return [
-                'approved' => true,
-                'message' => 'Approved by Admin.',
-                'requires_approval' => false,
-            ];
-        }
+//        if ($user->hasRole('Admin')) {
+//            return [
+//                'approved' => true,
+//                'message' => 'Approved by Admin.',
+//                'requires_approval' => false,
+//            ];
+//        }
 
         DB::transaction(function () use ($transaction, $user) {
             Approval::create([
