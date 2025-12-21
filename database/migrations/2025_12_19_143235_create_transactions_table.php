@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('currency', 3);
             $table->string('type'); // transfer, deposit, withdrawal.
             $table->string('status'); // pending_approval, approval_not_required, completed, rejected
-            $table->string('direction'); // debit, credit
+            $table->string('direction')->default('debit'); // debit, credit
             $table->foreignId('initiated_by')->constrained('users');
             $table->foreignId('processed_by')->nullable()->constrained('users');
             $table->timestamps();

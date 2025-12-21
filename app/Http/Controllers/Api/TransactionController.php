@@ -269,7 +269,7 @@ class TransactionController extends Controller
             'currency' => 'required|string|size:3',
             'description' => 'nullable|string',
             'reference_number'=>'required|string|max:50|unique:transactions,reference_number',
-            'direction'=>'required|in:debit,credit',
+//            'direction'=>'required|in:debit,credit',
         ]);
 
         /** @var \App\Models\User $user */
@@ -286,7 +286,7 @@ class TransactionController extends Controller
                 'description' => $data['description'] ?? '',
                 'initiated_by' => $user->id,
                 'status' => 'pending',
-                'direction'=>$data['direction']
+//                'direction'=>$data['direction']
             ]);
 
             // بناء السلسلة
