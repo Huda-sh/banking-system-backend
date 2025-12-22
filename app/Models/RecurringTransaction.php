@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RecurringTransaction extends Model
 {
@@ -29,12 +30,12 @@ class RecurringTransaction extends Model
     ];
 
     // العلاقات
-    public function account(): BelongsTo
+    public function account(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Account::class, 'account_id');
     }
 
-    public function targetAccount(): BelongsTo
+    public function targetAccount(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Account::class, 'target_account_id');
     }

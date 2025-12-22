@@ -77,5 +77,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/recurring-transactions/{id}/toggle', [RecurringTransactionsController::class, 'toggle']);
     Route::put('/recurring-transactions/{id}', [RecurringTransactionsController::class, 'update']);
     Route::post('/recurring-transactions/{id}/terminate', [RecurringTransactionsController::class, 'terminate']);
-    Route::get('/transactions', [RecurringTransactionsController::class, 'history'])->name('recurring.history');
+//    Route::get('/transactions', [RecurringTransactionsController::class, 'history'])->name('recurring.history');
 });

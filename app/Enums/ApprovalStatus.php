@@ -3,7 +3,7 @@
 namespace App\Enums;
 
 enum ApprovalStatus: string
-{// approval_status AS ENUM ('pending', 'approved', 'rejected');
+{
     case PENDING = 'pending';
     case APPROVED = 'approved';
     case REJECTED = 'rejected';

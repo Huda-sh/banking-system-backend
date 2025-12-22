@@ -285,7 +285,7 @@ class TransactionController extends Controller
                 'currency' => $data['currency'],
                 'description' => $data['description'] ?? '',
                 'initiated_by' => $user->id,
-                'status' => 'pending',
+                'status' => TransactionStatus::PENDING
 //                'direction'=>$data['direction']
             ]);
 

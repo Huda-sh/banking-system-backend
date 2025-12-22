@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use App\Enums\ApprovalStatus;
 
 class Approval extends Model
 {
@@ -15,6 +16,10 @@ class Approval extends Model
         'approved_by',
         'status',
         'comment',
+    ];
+
+    protected $casts = [
+        'status' => ApprovalStatus::class,
     ];
 
     public function approvable(): MorphTo

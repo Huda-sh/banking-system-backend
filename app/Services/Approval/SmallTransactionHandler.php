@@ -2,6 +2,8 @@
 
 namespace App\Services\Approval;
 
+use App\Enums\ApprovalStatus;
+use App\Enums\TransactionStatus;
 use App\Models\Approval;
 use App\Models\Transaction;
 use App\Models\User;
@@ -27,7 +29,7 @@ class SmallTransactionHandler extends AbstractApprovalHandler
                     'entity_id' => $transaction->id,
                     'requested_by' => $user->id,
                     'approved_by' => $user->id,
-                    'status' => 1, // 1 = approved
+                    'status' => ApprovalStatus::PENDING,
                     'approved_at' => now()
                 ]);
 
