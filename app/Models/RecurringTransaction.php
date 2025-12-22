@@ -10,8 +10,15 @@ class RecurringTransaction extends Model
     protected $table = 'recurring_transactions';
 
     protected $fillable = [
-        'account_id', 'target_account_id', 'type', 'amount', 'frequency',
-        'start_date', 'end_date', 'active', 'created_by'
+        'account_id',
+        'target_account_id',
+        'type',
+        'amount',
+        'frequency',
+        'start_date',
+        'end_date',
+        'active',
+        'created_by'
     ];
 
     protected $casts = [
