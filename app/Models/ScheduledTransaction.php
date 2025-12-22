@@ -13,7 +13,11 @@ class ScheduledTransaction extends Model
     protected $table = 'scheduled_transactions';
 
     protected $fillable = [
-        'account_id', 'target_account_id', 'type', 'amount', 'scheduled_at',
+        'account_id',
+        'target_account_id',
+        'type',
+        'amount',
+        'scheduled_at',
         'status', 'created_by'
     ];
 
