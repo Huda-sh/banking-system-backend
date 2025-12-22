@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AccountGroupController;
+use App\Http\Controllers\Api\RecurringTransactionsController;
+use App\Http\Controllers\Api\ScheduledTransactionsController;
 use App\Http\Controllers\SimpleTransactionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -59,17 +61,21 @@ Route::controller(\App\Http\Controllers\Api\TransactionController::class)
 
 
 
-Route::get('/test-approval/{transactionId}', function ($transactionId) {
-    $transaction = Transaction::with([
-        'sourceAccount.user',
-        'targetAccount.user',
-        'initiator'
-    ])->findOrFail($transactionId);
+Route::middleware('auth:sanctum')->group(function () {
 
-    $user = Auth::user();
+    //scheduled transactions
+    Route::get('/scheduled-transactions', [ScheduledTransactionsController::class, 'index']);
+    Route::get('/scheduled-transactions/{id}', [ScheduledTransactionsController::class, 'show']);
+    Route::post('/transactions/schedule', [ScheduledTransactionsController::class, 'store']);
+    Route::put('/scheduled-transactions/{id}', [ScheduledTransactionsController::class, 'update']);
+    Route::delete('/scheduled-transactions/{id}', [ScheduledTransactionsController::class, 'destroy']);
+    Route::post('/scheduled-transactions/{id}/retry', [ScheduledTransactionsController::class, 'retry']);
 
-    $handler = new SmallTransactionHandler();
-    $result = $handler->handle($transaction, $user);
-
-    return response()->json($result);
+    //recurring transactions
+    Route::get('/recurring-transactions', [RecurringTransactionsController::class, 'index']);
+    Route::post('/transactions/recurring', [RecurringTransactionsController::class, 'store']);
+    Route::patch('/recurring-transactions/{id}/toggle', [RecurringTransactionsController::class, 'toggle']);
+    Route::put('/recurring-transactions/{id}', [RecurringTransactionsController::class, 'update']);
+    Route::post('/recurring-transactions/{id}/terminate', [RecurringTransactionsController::class, 'terminate']);
+    Route::get('/transactions', [RecurringTransactionsController::class, 'history'])->name('recurring.history');
 });
