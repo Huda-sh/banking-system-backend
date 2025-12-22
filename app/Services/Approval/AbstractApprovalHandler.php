@@ -1,19 +1,24 @@
 <?php
-// app/Services/Approval/AbstractApprovalHandler.php
+
+
 namespace App\Services\Approval;
 
 use App\Models\Transaction;
 use App\Models\User;
 
-abstract class AbstractApprovalHandler implements ApprovalHandler
+abstract class AbstractApprovalHandler
 {
-    protected ?ApprovalHandler $nextHandler = null;
+    protected ?AbstractApprovalHandler $nextHandler = null;
 
-    public function setNext(ApprovalHandler $handler): ApprovalHandler
+    public function setNext(AbstractApprovalHandler $handler): AbstractApprovalHandler
     {
         $this->nextHandler = $handler;
         return $handler;
     }
+
+    abstract public function canHandle(Transaction $transaction): bool;
+
+    abstract public function handle(Transaction $transaction, User $user): array;
 
     protected function passToNext(Transaction $transaction, User $user): array
     {

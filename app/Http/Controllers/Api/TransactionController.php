@@ -5,32 +5,32 @@ namespace App\Http\Controllers\Api;
 use App\Enums\Direction;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Exceptions\TransactionException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreTransactionRequest;
 use App\Http\Requests\Api\UpdateTransactionRequest;
-use App\Http\Resources\TransactionResource;
 use App\Http\Resources\TransactionCollection;
+use App\Http\Resources\TransactionResource;
+use App\Models\Approval;
+use App\Models\Transaction;
+use App\Models\User;
 use App\Observables\TransactionApprovalSubject;
-use App\Observers\ReceiverEmailObserver;
-use App\Observers\SenderEmailObserver;
+use App\Observer\ReceiverEmailObserver;
+use App\Observer\SenderEmailObserver;
 use App\Services\Approval\LargeTransactionHandler;
 use App\Services\Approval\MediumTransactionHandler;
 use App\Services\Approval\SmallTransactionHandler;
 use App\Services\Approval\VeryLargeTransactionHandler;
-use App\Services\Transactions\TransactionService;
 use App\Services\Transactions\FeeCalculationService;
-use App\Models\Transaction;
-use App\Models\User;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use App\Services\Transactions\TransactionService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Exceptions\ApprovalException;
-use App\Exceptions\TransactionException;
-use Carbon\Carbon;
-use App\Models\Approval;
+use Illuminate\Support\Facades\Validator;
+
 class TransactionController extends Controller
 {
     public function __construct(
@@ -227,7 +227,6 @@ class TransactionController extends Controller
 
             $approval = $transaction->approvals()->first();
             if ($approval) {
-
                 $approval->update([
                     'approved_by' => $user->id,
                     'status' => $newStatus,
@@ -240,7 +239,7 @@ class TransactionController extends Controller
                 $subject->approveTransaction();
 
             } else {
-                Approval::updateOrcreate([
+                Approval::updateOrCreate([
                     'entity_type' => 'transaction',
                     'entity_id' => $transaction->id,
                     'requested_by' => $transaction->initiated_by,
@@ -262,7 +261,7 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'type' => 'required|in:transfer',
+            'type' => 'required|in:transfer,withdrawal,deposit',
             'sourceAccountId' => 'required|exists:accounts,id',
             'targetAccountId' => 'required|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
@@ -304,7 +303,6 @@ class TransactionController extends Controller
             if ($result['approved']) {
                 $transaction->update([
                     'status' => 'approved',
-                    'approved_at' => now(),
                 ]);
 
                  // $this->executeTransfer($transaction);
