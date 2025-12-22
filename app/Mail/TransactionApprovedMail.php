@@ -37,6 +37,8 @@ class TransactionApprovedMail extends Mailable
                 'role' => $this->role,
                 'amountFormatted' => number_format($this->transaction->amount, 2).' '.$this->transaction->currency,
                 'approvalDate' => now()->format('Y-m-d H:i:s'),
+                'targetAccountNumber' => $this->transaction->targetAccount->account_number,
+                'sourceAccountNumber' => $this->transaction->sourceAccount->account_number,
             ]);
     }
 }

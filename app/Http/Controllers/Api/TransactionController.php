@@ -233,10 +233,7 @@ class TransactionController extends Controller
                     'comment' => $request->comments,
                 ]);
 
-                $subject = new TransactionApprovalSubject($transaction);
-                $subject->attach(new SenderEmailObserver());
-                $subject->attach(new ReceiverEmailObserver());
-                $subject->approveTransaction();
+
 
             } else {
                 Approval::updateOrCreate([
@@ -248,6 +245,10 @@ class TransactionController extends Controller
                     'comment' => $request->comments,
                 ]);
             }
+            $subject = new TransactionApprovalSubject($transaction);
+            $subject->attach(new \App\Observers\SenderEmailObserver());
+            $subject->attach(new \App\Observers\ReceiverEmailObserver());
+            $subject->notify();
         });
 
         return response()->json([

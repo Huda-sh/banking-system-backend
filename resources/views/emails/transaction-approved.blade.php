@@ -33,10 +33,10 @@
             <p>الحالة: <span style="color: green; font-weight: bold;">✅ معتمدة</span></p>
 
             @if($role === 'sender')
-                <p>حسابك: {{ $transaction->source_account_id }}</p>
-                <p>الحساب المستقبل: {{ $transaction->target_account_id }}</p>
+                <p>حسابك: {{ $transaction->sourceAccount->account_number }}</p>
+                <p>الحساب المستقبل: {{ $transaction->targetAccount->account_number }}</p>
             @else
-                <p>حسابك: {{ $transaction->target_account_id }}</p>
+                <p>حسابك: {{ $transaction->targetAccount->account_number }}</p>
                 <p>المرسل: {{ $transaction->initiator->first_name ?? 'غير معروف' }} {{ $transaction->initiator->last_name ?? '' }}</p>
             @endif
         </div>
