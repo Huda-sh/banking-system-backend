@@ -16,6 +16,7 @@ use App\Models\WithDrawal;
 use App\Models\Transfer;
 use App\Models\TransactionAuditLog;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transaction extends Model
 {
@@ -42,23 +43,34 @@ class Transaction extends Model
     /**
      * Relationships
      */
-    public function sourceAccount()
+     public function sourceAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'source_account_id');
     }
 
-    public function targetAccount()
+    public function targetAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'target_account_id');
     }
-    public function initiatedBy()
+
+    public function initiator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'initiated_by');
     }
 
+     public function getSourceOwnerAttribute()
+    {
+        return $this->sourceAccount->owner->first();
+    }
+
+    public function getTargetOwnerAttribute()
+    {
+        return $this->targetAccount->owner->first();
+    }
     public function full_name(){
         return $this->belongsTo(User::class, 'initiated_by')->select('first_name', 'last_name');
     }
+
 
     public function processedBy()
     {
@@ -149,7 +161,18 @@ class Transaction extends Model
     {
         return $this->type === TransactionType::TRANSFER;
     }
+    protected static function boot()
+    {
+        parent::boot();
 
+        static::retrieved(function ($transaction) {
+            $transaction->loadMissing([
+                'sourceAccount.user:id,first_name,last_name,email',
+                'targetAccount.user:id,first_name,last_name,email',
+                'initiator:id,first_name,last_name'
+            ]);
+        });
+    }
     public function getTransactionDetails(): array
     {
         return [

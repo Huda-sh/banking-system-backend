@@ -47,7 +47,13 @@ class AccountSeeder extends Seeder
             'balance' => 0.00,
             'currency' => 'USD',
         ]);
-
+        $businessAccount2 = Account::create([
+            'account_type_id' => 3, // Business
+            'parent_account_id' => null,
+            'account_number' => 'AC-0000000003',
+            'balance' => 100000.00,
+            'currency' => 'USD',
+        ]);
         // Attach accounts to users
         if ($users->count() > 0) {
             $firstUser = $users[0];
@@ -63,6 +69,11 @@ class AccountSeeder extends Seeder
                 $thirdUser = $users[2];
                 $thirdUser->accounts()->attach($jointAccount->id, ['is_owner' => true]);
             }
+            if ($users->count() > 3) {
+                $fourthUser = $users[3];
+                $fourthUser->accounts()->attach($businessAccount2->id, ['is_owner' => true]);
+            }
+
         }
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Approval extends Model
 {
@@ -15,18 +17,18 @@ class Approval extends Model
         'comment',
     ];
 
-    public function requestedBy()
+    public function approvable(): MorphTo
     {
+        return $this->morphTo();
+    }
+
+     public function requester(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+     {
         return $this->belongsTo(User::class, 'requested_by');
     }
 
-    public function approvedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
-    }
-
-    public function transaction()
-    {
-        return $this->belongsTo(Transaction::class, 'entity_id');
     }
 }

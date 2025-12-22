@@ -55,6 +55,19 @@ class UserSeeder extends Seeder
                 'status' => UserStatus::ACTIVE,
                 'password_hash' => Hash::make('password'),
                 'roles' => ['Customer'],
+            ],
+            [
+                'first_name' => 'mhran',
+                'last_name' => 'test',
+                'middle_name' => 'Doe',
+                'email' => 'mhranabwdqt971@gmail.com',
+                'phone' => '1234567890',
+                'national_id' => '1234567890',
+                'date_of_birth' => '1990-01-01',
+                'address' => '1234567890',
+                'status' => UserStatus::ACTIVE,
+                'password_hash' => Hash::make('password'),
+                'roles' => ['Admin'],
             ]
         ];
 

@@ -5,6 +5,9 @@ use App\Http\Controllers\SimpleTransactionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Transaction\TransactionController;
 use App\Http\Controllers\UserController;
+use App\Models\Transaction;
+use App\Services\Approval\SmallTransactionHandler;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [SessionController::class, 'create']);
@@ -53,3 +56,20 @@ Route::controller(\App\Http\Controllers\Api\TransactionController::class)
         Route::get('transactions/{id}', 'getTransaction');
 
     });
+
+
+
+Route::get('/test-approval/{transactionId}', function ($transactionId) {
+    $transaction = Transaction::with([
+        'sourceAccount.user',
+        'targetAccount.user',
+        'initiator'
+    ])->findOrFail($transactionId);
+
+    $user = Auth::user();
+
+    $handler = new SmallTransactionHandler();
+    $result = $handler->handle($transaction, $user);
+
+    return response()->json($result);
+});

@@ -55,4 +55,14 @@ class Account extends Model
     {
         return $this->hasOne(AccountState::class)->latestOfMany();
     }
+    public function user(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'account_users', 'account_id', 'user_id')->withPivot('is_owner');
+    }
+    public function owner()
+    {
+        return $this->belongsToMany(User::class, 'account_users')
+            ->wherePivot('is_owner', 1);
+    }
+
 }
