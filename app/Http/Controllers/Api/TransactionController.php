@@ -263,8 +263,8 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'type' => 'required|in:transfer,withdrawal,deposit',
-            'sourceAccountId' => 'required|exists:accounts,id',
-            'targetAccountId' => 'required|exists:accounts,id',
+            'sourceAccountId' => 'nullable|exists:accounts,id',
+            'targetAccountId' => 'nullable|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|size:3',
             'description' => 'nullable|string',

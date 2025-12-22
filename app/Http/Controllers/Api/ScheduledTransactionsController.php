@@ -91,14 +91,13 @@ class ScheduledTransactionsController extends Controller
             'amount' => 'nullable|numeric|min:0.01',
             'scheduled_at' => 'nullable|date|after:now',
         ]);
-
+        $data = $validator->validated();
         if ($validator->fails()) {
             return response()->json([
                 'errors' => $validator->errors()
             ], 422);
         }
-
-        $data = $request->validated();
+        $data = $validator->validated();
         $transaction->update($data);
 
         return response()->json([
