@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\Api\RecurringTransactionsController;
 use App\Http\Controllers\Api\ScheduledTransactionsController;
+use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\SimpleTransactionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Transaction\TransactionController;
@@ -53,10 +54,9 @@ Route::controller(\App\Http\Controllers\Api\TransactionController::class)
     ->middleware(['auth:sanctum'])
     ->group(function () {
         Route::get('transactions', 'show');
-        Route::post('/transactions','store');
+        Route::post('/transactions', 'store');
         Route::patch('transactions/{id}/status', 'updateStatus');
         Route::get('transactions/{id}', 'getTransaction');
-
     });
 
 
@@ -77,5 +77,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/recurring-transactions/{id}/toggle', [RecurringTransactionsController::class, 'toggle']);
     Route::put('/recurring-transactions/{id}', [RecurringTransactionsController::class, 'update']);
     Route::post('/recurring-transactions/{id}/terminate', [RecurringTransactionsController::class, 'terminate']);
-//    Route::get('/transactions', [RecurringTransactionsController::class, 'history'])->name('recurring.history');
+    //    Route::get('/transactions', [RecurringTransactionsController::class, 'history'])->name('recurring.history');
 });
+
+// Ticket Routes
+Route::controller(TicketController::class)
+    ->prefix('tickets')
+    ->middleware('auth:sanctum')
+    ->group(function () {
+        Route::post('/', 'store');
+        Route::get('/', 'index');
+        Route::patch('/{id}/status', 'updateStatus')->middleware('role:Admin,Manager,Teller');
+    });
