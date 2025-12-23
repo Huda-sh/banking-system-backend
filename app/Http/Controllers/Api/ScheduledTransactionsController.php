@@ -111,23 +111,23 @@ class ScheduledTransactionsController extends Controller
     {
         $transaction = ScheduledTransaction::where('created_by', Auth::id())
             ->where('id', $id)
-            ->where('status', 'scheduled') // فقط المعاملات المجدولة يمكن حذفها
+            ->where('status', 'scheduled')
             ->firstOrFail();
 
         $transaction->delete();
 
-        return response()->noContent();
+        return response()->json('Scheduled transaction deleted successfully');
     }
 
     public function retry($id)
     {
         $transaction = ScheduledTransaction::where('created_by', Auth::id())
             ->where('id', $id)
-            ->where('status', 'failed') // فقط المعاملات الفاشلة يمكن إعادة تشغيلها
+            ->where('status', 'failed')
             ->firstOrFail();
 
         try {
-            // محاكاة التنفيذ (في الواقع سيستخدم TransactionService)
+
             $transaction->update([
                 'status' => 'executed',
                 'scheduled_at' => now()
