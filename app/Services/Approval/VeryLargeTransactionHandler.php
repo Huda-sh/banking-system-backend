@@ -17,13 +17,13 @@ class VeryLargeTransactionHandler extends AbstractApprovalHandler
 
     public function handle(Transaction $transaction, User $user): array
     {
-//        if ($user->hasRole('Admin')) {
-//            return [
-//                'approved' => true,
-//                'message' => 'Approved by Admin (Very Large).',
-//                'requires_approval' => false,
-//            ];
-//        }
+        if ($user->hasRole('Admin')) {
+            return [
+                'approved' => true,
+                'message' => 'Approved by Admin (Very Large).',
+                'requires_approval' => false,
+            ];
+        }
 
         DB::transaction(function () use ($transaction, $user) {
             Approval::create([
