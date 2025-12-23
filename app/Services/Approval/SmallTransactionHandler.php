@@ -23,7 +23,7 @@ class SmallTransactionHandler extends AbstractApprovalHandler
     {
         if ($this->canHandle($transaction)) {
             return DB::transaction(function () use ($transaction, $user) {
-                // 1. إنشاء سجل موافقة
+
                 Approval::create([
                     'entity_type' => 'transaction',
                     'entity_id' => $transaction->id,
@@ -33,11 +33,9 @@ class SmallTransactionHandler extends AbstractApprovalHandler
                     'approved_at' => now()
                 ]);
 
-                // 2. تحديث حالة المعاملة
-                $transaction->update(['status' => 'approved']);
+                 $transaction->update(['status' => 'approved']);
 
-                // 3. إرسال الإيميلات
-                $subject = new TransactionApprovalSubject($transaction);
+                 $subject = new TransactionApprovalSubject($transaction);
                 $subject->attach(new SenderEmailObserver());
                 $subject->attach(new ReceiverEmailObserver());
                 $subject->notify();

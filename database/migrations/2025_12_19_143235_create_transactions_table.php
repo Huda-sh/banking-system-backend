@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('reference_number')->unique();
             $table->string('description')->nullable();
-            $table->foreignId('source_account_id')->constrained('accounts')->nullable();
-            $table->foreignId('target_account_id')->constrained('accounts')->nullable();
+            $table->integer('source_account_id')->constrained('accounts')->default(null)->nullable();
+            $table->integer('target_account_id')->constrained('accounts')->default(null)->nullable();
             $table->decimal('amount', 30, 2);
             $table->string('currency', 3);
             $table->string('type'); // transfer, deposit, withdrawal.

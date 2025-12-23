@@ -263,13 +263,11 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'type' => 'required|in:transfer,withdrawal,deposit',
-            'sourceAccountId' => 'nullable|exists:accounts,id',
-            'targetAccountId' => 'nullable|exists:accounts,id',
+            'sourceAccountId' => 'nullable|integer|exists:accounts,id',
+            'targetAccountId' => 'nullable|integer|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|size:3',
             'description' => 'nullable|string',
-            'reference_number'=>'required|string|max:50|unique:transactions,reference_number',
-//            'direction'=>'required|in:debit,credit',
         ]);
 
         /** @var \App\Models\User $user */
@@ -278,18 +276,16 @@ class TransactionController extends Controller
         return DB::transaction(function () use ($data, $user) {
             $transaction = Transaction::create([
                 'type' => $data['type'],
-                'reference_number'=>$data['reference_number'],
-                'source_account_id' => $data['sourceAccountId'],
-                'target_account_id' => $data['targetAccountId'],
+                'reference_number' => 'MTX-'.random_int(1000000, 9999999),
+                'source_account_id' => $data['sourceAccountId'] ?? null,
+                'target_account_id' => $data['targetAccountId'] ?? null,
                 'amount' => $data['amount'],
                 'currency' => $data['currency'],
                 'description' => $data['description'] ?? '',
                 'initiated_by' => $user->id,
-                'status' => TransactionStatus::PENDING
-//                'direction'=>$data['direction']
+                'status' => TransactionStatus::PENDING,
             ]);
 
-            // بناء السلسلة
             $small = new SmallTransactionHandler();
             $medium = new MediumTransactionHandler();
             $large = new LargeTransactionHandler();
@@ -306,8 +302,6 @@ class TransactionController extends Controller
                     'status' => 'approved',
                 ]);
 
-                 // $this->executeTransfer($transaction);
-
                 return response()->json([
                     'message' => $result['message'],
                     'transaction' => $transaction->fresh(),
@@ -321,8 +315,7 @@ class TransactionController extends Controller
                 ], 403);
             }
         });
-    }
-    /**
+    }    /**
      * Display the specified transaction.
      */
     public function show(Request $request): JsonResponse

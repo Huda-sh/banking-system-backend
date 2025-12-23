@@ -14,7 +14,7 @@ class SenderEmailObserver implements Observer
     {
         $transaction = $subject->getTransaction();
 
-         $sender = $transaction->source_owner;
+         $sender = $transaction?->sourceAccount?->user?->first()??null;
 
         if (!$sender || !$sender->email) {
             Log::warning('No sender email found for transaction', [

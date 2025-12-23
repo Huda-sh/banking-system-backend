@@ -14,8 +14,7 @@ class ReceiverEmailObserver implements Observer
     {
         $transaction = $subject->getTransaction();
 
-        // الحصول على المالك الرئيسي للحساب الهدف
-        $receiver = $transaction->target_owner;
+        $receiver = $transaction?->targetAccount?->user?->first()??null;
 
         if (!$receiver || !$receiver->email) {
             Log::warning('No receiver email found for transaction', [

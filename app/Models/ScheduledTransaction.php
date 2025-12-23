@@ -44,8 +44,7 @@ class ScheduledTransaction extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    // نطاق للبحث والفلترة
-    public function scopeFilter($query, array $filters)
+     public function scopeFilter($query, array $filters)
     {
         if (!empty($filters['search'])) {
             $query->where(function($q) use ($filters) {

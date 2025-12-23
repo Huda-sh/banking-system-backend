@@ -47,11 +47,10 @@ class ScheduledTransactionsController extends Controller
 
     public function store(Request $request)
     {
-        // التحقق من الصحة باستخدام Validator::make
-        $validator = Validator::make($request->all(), [
+         $validator = Validator::make($request->all(), [
             'type' => 'required|in:withdrawal,deposit,transfer',
-            'account_id' => 'required|exists:accounts,id',
-            'target_account_id' => 'required_if:type,transfer|exists:accounts,id',
+            'account_id' => 'integer|nullable',
+            'target_account_id' => 'integer|nullable',
             'amount' => 'required|numeric|min:0.01',
             'scheduled_at' => 'required|date|after:now',
             'description' => 'nullable|string',
