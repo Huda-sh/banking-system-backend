@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class RecurringTransactionsController extends Controller
 {
+
     public function index(Request $request)
     {
         $filters = $request->only([
@@ -55,10 +56,14 @@ class RecurringTransactionsController extends Controller
             ], 422);
         }
         $data = $validator->validated();
-        $date['account_id']= $data['account_id'] ?? null;
+
+        $data['account_id']= $data['account_id'] ?? null;
         $data['target_account_id'] = $data['target_account_id'] ?? null;
         $data['created_by'] = Auth::id() ;
         $data['active'] = true;
+        $data['reference_number'] = 'MTX-'.random_int(1000000, 9999999);
+
+
 
         $transaction = RecurringTransaction::create($data);
 

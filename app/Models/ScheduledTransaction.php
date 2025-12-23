@@ -15,6 +15,7 @@ class ScheduledTransaction extends Model
 
     protected $fillable = [
         'account_id',
+        'reference_number',
         'target_account_id',
         'type',
         'amount',
@@ -28,8 +29,7 @@ class ScheduledTransaction extends Model
         'active' => 'boolean'
     ];
 
-    // العلاقات
-    public function account(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+     public function account(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Account::class, 'account_id');
     }
@@ -47,20 +47,10 @@ class ScheduledTransaction extends Model
      public function scopeFilter($query, array $filters)
     {
         if (!empty($filters['search'])) {
-            $query->where(function($q) use ($filters) {
-                $q->whereHas('account', function($q) use ($filters) {
-                    $q->where('account_number', 'like', '%' . $filters['search'] . '%');
-                })
-                    ->orWhereHas('targetAccount', function($q) use ($filters) {
-                        $q->where('account_number', 'like', '%' . $filters['search'] . '%');
-                    })
-                    ->orWhere('description', 'like', '%' . $filters['search'] . '%');
-            });
+            $query->where('reference_number', 'like', '%' . $filters['search'] . '%');
+
         }
 
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
 
         if (!empty($filters['type'])) {
             $query->where('type', $filters['type']);

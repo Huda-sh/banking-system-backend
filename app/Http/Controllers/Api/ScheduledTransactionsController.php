@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class ScheduledTransactionsController extends Controller
 {
+
     public function index(Request $request)
     {
         $filters = $request->only([
@@ -68,6 +69,7 @@ class ScheduledTransactionsController extends Controller
 
         $data['created_by'] = Auth::id();
         $data['status'] = 'scheduled';
+        $data['reference_number'] = 'MTX-'.random_int(1000000, 9999999);
 
          unset($data['sourceAccountId']);
 

@@ -13,6 +13,7 @@ class RecurringTransaction extends Model
     protected $fillable = [
         'account_id',
         'target_account_id',
+        'reference_number',
         'type',
         'amount',
         'frequency',
@@ -70,19 +71,12 @@ class RecurringTransaction extends Model
         };
     }
 
-    // نطاق للبحث والفلترة
-    public function scopeFilter($query, array $filters)
+     public function scopeFilter($query, array $filters)
     {
         if (!empty($filters['search'])) {
-            $query->where(function($q) use ($filters) {
-                $q->whereHas('account', function($q) use ($filters) {
-                    $q->where('account_number', 'like', '%' . $filters['search'] . '%');
-                })
-                    ->orWhereHas('targetAccount', function($q) use ($filters) {
-                        $q->where('account_number', 'like', '%' . $filters['search'] . '%');
-                    })
-                    ->orWhere('description', 'like', '%' . $filters['search'] . '%');
-            });
+            $query->where('reference_number', 'like', '%' . $filters['search'] . '%');
+
+
         }
 
         if (isset($filters['is_active'])) {

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('recurring_transactions', function (Blueprint $table) {
             $table->id();
+            $table->string('reference_number')->unique();
             $table->integer('account_id')->constrained('accounts')->default(null)->nullable();
             $table->integer('target_account_id')->constrained('accounts')->default(null)->nullable();
             $table->enum('type', ['transfer', 'deposit', 'withdrawal']);
