@@ -25,7 +25,7 @@ class ScheduledTransaction extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'scheduled_at' => 'datetime',
+//        'scheduled_at' => 'datetime',
         'active' => 'boolean'
     ];
 

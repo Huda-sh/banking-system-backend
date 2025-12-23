@@ -91,8 +91,9 @@ class ScheduledTransactionsController extends Controller
         $validator = Validator::make($request->all(), [
             'amount' => 'nullable|numeric|min:0.01',
             'scheduled_at' => 'nullable|date|after:now',
+            'status'=> 'nullable|in:scheduled,executed,failed',
         ]);
-        $data = $validator->validated();
+//        $data = $validator->validated();
         if ($validator->fails()) {
             return response()->json([
                 'errors' => $validator->errors()

@@ -181,16 +181,16 @@ class TransactionController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:approved,rejected',
+            'status' => 'required|in:approved,completed,rejected',
             'comments' => 'nullable|string|max:500',
         ]);
 
         $user = auth()->user();
         $transaction = Transaction::findOrFail($id);
 
-         if ($transaction->status !== 'pending') {
-            return response()->json(['error' => 'Only pending transactions can be updated.'], 400);
-        }
+//         if ($transaction->status !== 'pending') {
+//            return response()->json(['error' => 'Only pending transactions can be updated.'], 400);
+//        }
 
 
         $allowed = $user->hasRole('Manager') || $user->hasRole('Admin');
