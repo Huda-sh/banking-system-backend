@@ -24,7 +24,7 @@ class TicketController extends Controller
         $ticket = Ticket::create([
             'title' => $request->title,
             'description' => $request->description,
-            'status' => $request->status ?? TicketStatus::PENDING,
+            'status' => TicketStatus::PENDING,
             'user_id' => $user->id,
         ]);
 

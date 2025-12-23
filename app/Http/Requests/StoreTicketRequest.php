@@ -24,7 +24,6 @@ class StoreTicketRequest extends FormRequest
         return [
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'status' => 'nullable|in:pending,in_progress,resolved',
         ];
     }
 }
