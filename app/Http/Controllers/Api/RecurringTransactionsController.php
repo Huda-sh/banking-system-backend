@@ -96,7 +96,7 @@ class RecurringTransactionsController extends Controller
 
         $validator = Validator::make($request->all(), [
             'amount' => 'nullable|numeric|min:0.01',
-            'frequency' => 'required|in:' . implode(',', FrequencyEnum::values()),
+            'frequency' => 'nullable|in:' . implode(',', FrequencyEnum::values()),
             'end_date' => 'nullable|date',
         ]);
 
@@ -105,8 +105,8 @@ class RecurringTransactionsController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
-        $data = $request->validated();
+        $data = $validator->validated();
+//        $data = $request->validated();
         $transaction->update($data);
 
         return response()->json([
