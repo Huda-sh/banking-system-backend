@@ -14,8 +14,8 @@ return new class extends Migration
     {
         Schema::create('scheduled_transactions', function (Blueprint $table) {
             $table->id();
-            $table->integer('account_id')->constrained('accounts')->default(null);
-            $table->integer('target_account_id')->constrained('accounts')->default(null);
+            $table->integer('account_id')->constrained('accounts')->default(null)->nullable();
+            $table->integer('target_account_id')->constrained('accounts')->default(null)->nullable();
             $table->enum('type', ['transfer', 'deposit', 'withdrawal']);
             $table->decimal('amount', 15, 2);
             $table->timestamp('scheduled_at');

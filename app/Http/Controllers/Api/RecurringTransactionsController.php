@@ -41,8 +41,8 @@ class RecurringTransactionsController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'type' => 'required|in:transfer,deposit,withdrawal',
-            'account_id' => 'required|exists:accounts,id',
-            'target_account_id' => 'required|exists:accounts,id',
+            'account_id' => 'nullable|integer|exists:accounts,id',
+            'target_account_id' => 'nullable|integer|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
             'frequency' => 'required|in:' . implode(',', FrequencyEnum::values()),
             'start_date' => 'required|date|after_or_equal:today',
@@ -54,9 +54,10 @@ class RecurringTransactionsController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-
         $data = $validator->validated();
-        $data['created_by'] = Auth::id();
+        $date['account_id']= $data['account_id'] ?? null;
+        $data['target_account_id'] = $data['target_account_id'] ?? null;
+        $data['created_by'] = Auth::id() ;
         $data['active'] = true;
 
         $transaction = RecurringTransaction::create($data);
